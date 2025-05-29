@@ -1,5 +1,5 @@
 // npx expo install react-native-appwrite react-native-url-polyfill
-
+// config with appwrite api
 import {Account, Client, Databases} from 'react-native-appwrite';
 
 export const client = new Client()
@@ -7,4 +7,4 @@ export const client = new Client()
   .setProject(process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID!)
   .setPlatform(process.env.EXPO_PUBLIC_APPWRITE_PLATFORM!)
 
-const account = new Account(client) 
+export const account = new Account(client) 
