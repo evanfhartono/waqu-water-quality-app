@@ -7,12 +7,11 @@ export default function Index() {
       style={styles.view}
     >
       <Text>Edit app/index.tsx to edit this screen.</Text>
-      {/* <Link 
+      <Link 
         href="/loginScreen" 
         style={styles.navButton}>
-          {" "}
-          login
-        </Link> */}
+          <Text>login</Text>
+      </Link>
     </View>
   );
 }

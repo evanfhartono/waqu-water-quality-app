@@ -29,11 +29,11 @@ export default function AuthScreen() {
           setPasswordError("Password must be 6 char long")
           return;
       }
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (emailRegex.test(email)) {
-          setEmailError("please input a valid email")
-          return;
-      }
+      // const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      // if (emailRegex.test(email)) {
+      //     setEmailError("please input a valid email")
+      //     return;
+      // }
       setError(null)
       setEmailError(null)
       setPasswordError(null)
@@ -41,7 +41,7 @@ export default function AuthScreen() {
       if (isSignUp) {
         const error = await signUp(email, password)
         if (error) {
-          setError(error) 
+          setError(error)
           return;
         } else {
           const error = await signUp(email, password)
@@ -81,7 +81,7 @@ export default function AuthScreen() {
           <TextInput
             label="Password" 
             autoCapitalize="none" 
-            keyboardType="visible-password"
+            secureTextEntry
             // placeholder="example@gmail.com"
             mode="outlined"
             style={styles.input}
@@ -96,7 +96,7 @@ export default function AuthScreen() {
           ))
 
           <Button mode="contained" style={styles.button} onPress={handleAuth}>{isSignUp ? "Sign Up" : "SignIn"}</Button>
-          <Button mode="text" onPress={handleSwitchMode} style={styles.switchModeButtom}>{isSignUp ? "Already have an account?" : "Dont have an account? SignUp"}</Button>
+          <Button mode="text" onPress={handleSwitchMode} style={styles.switchModeButtom}> {isSignUp ? "Already have an account?" : "Dont have an account? SignUp"}</Button>
         </View>
       </KeyboardAvoidingView>
     )
