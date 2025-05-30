@@ -1,48 +1,43 @@
-import { Stack, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
-import * as SplashScreen from "expo-splash-screen";
-import { AuthProvider } from "../lib/auth-context";
-
-SplashScreen.preventAutoHideAsync();
+import { AuthProvider, useAuth } from "@/lib/auth-context";
+import { Stack, useRouter, useSegments } from "expo-router";
+import { useEffect } from "react";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { PaperProvider } from "react-native-paper";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 function RouteGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const [isAuth, setIsAuth] = useState<boolean | null>(null);
+  const { user, isLoadingUser } = useAuth();
+  const segments = useSegments();
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const authStatus = false; // Replace with your auth logic
-      setIsAuth(authStatus);
-    };
-    checkAuth();
-  }, []);
+    const inAuthGroup = segments[0] === "auth";
 
-  useEffect(() => {
-    if (isAuth === null) return;
-    if (!isAuth) {
+    if (!user && !inAuthGroup && !isLoadingUser) {
       router.replace("/auth");
-    } else {
+    } else if (user && inAuthGroup && !isLoadingUser) {
       router.replace("/");
     }
-    SplashScreen.hideAsync();
-  }, [isAuth, router]);
-
-  if (isAuth === null) {
-    return null; // Or render a <Text>Loading...</Text> in a View
-  }
+  }, [user, segments]);
 
   return <>{children}</>;
 }
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <RouteGuard>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="auth" options={{ headerShown: false }} />
-        </Stack>
-      </RouteGuard>
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <PaperProvider>
+          <SafeAreaProvider>
+            <RouteGuard>
+              <Stack>
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen name="auth" options={{ headerShown: false }} />
+              </Stack>
+            </RouteGuard>
+          </SafeAreaProvider>
+        </PaperProvider>
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }
