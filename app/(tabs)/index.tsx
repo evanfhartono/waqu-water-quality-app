@@ -11,9 +11,9 @@ export default function MapScreen() {
     >
       <Text>Edit app/index.tsx to edit this screen.</Text>
       <Link 
-        href="/loginScreen" 
+        href="/profile" 
         style={styles.navButton}>
-          <Text>login</Text>
+          <Text>profile</Text>
       </Link>
 
       <Button mode="text" onPress={signOut} icon={"logout"}>SignOut</Button>
@@ -30,7 +30,7 @@ const styles = StyleSheet.create({
   navButton: {
     width: 200, 
     height: 20, 
-    backgroundColor: "coral", 
+    backgroundColor: "lightblue", 
     borderRadius: 8, 
     textAlign: "center" 
   }
