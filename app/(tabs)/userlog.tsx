@@ -14,43 +14,40 @@ export default function AlertScreen() {
   const [droplet, setDroplet] = useState<Droplet[]>()
 
   const fetchDroplet = async () => {
-      try {
-          const response = await databases.listDocuments(
-              "6839e760003b3099528a",
-              "6839e96e001331fdd3c7",
-              [Query.equal("user_id", user?.$id ?? "")]
-            );
-            console.log(response.documents)
-            setDroplet(response.documents as Droplet[]);
-        } catch (error) {
-            console.error(error)
-        }
-    }
-
-
-    const DATABASES_ID = "6839e760003b3099528a"
-    const DROPLET_ID = "6839e96e001331fdd3c7"
-    useEffect(() => {
-      if (user) {
-        const channel = `databases.${'6839e760003b3099528a'}.collections.${"6839e96e001331fdd3c7"}.documents`
-        const dropletSubscription = client.subscribe(
-          channel,
-          (response: RealtimeResponse) => {
-            if (response.events.includes("databases.*.collections.*.documents.*.create")) {
-              fetchDroplet();
-            } else if (response.events.includes("databases.*.collections.*.documents.*.update")) {
-              fetchDroplet();
-            } else if (response.events.includes("databases.*.collections.*.documents.*.delete")) {
-              fetchDroplet();
-            }
-          }
-        ); 
-        fetchDroplet();
-        return () => {
-          dropletSubscription();
-        }
+    try {
+        const response = await databases.listDocuments(
+            "6839e760003b3099528a",
+            "6839e96e001331fdd3c7",
+            [Query.equal("user_id", user?.$id ?? "")]
+          );
+          console.log(response.documents)
+          setDroplet(response.documents as Droplet[]);
+      } catch (error) {
+          console.error(error)
       }
-    }, [user])
+  }
+
+  useEffect(() => {
+    if (user) {
+      const channel = `databases.${'6839e760003b3099528a'}.collections.${"6839e96e001331fdd3c7"}.documents`
+      const dropletSubscription = client.subscribe(
+        channel,
+        (response: RealtimeResponse) => {
+          if (response.events.includes("databases.*.collections.*.documents.*.create")) {
+            fetchDroplet();
+          } else if (response.events.includes("databases.*.collections.*.documents.*.update")) {
+            fetchDroplet();
+          } else if (response.events.includes("databases.*.collections.*.documents.*.delete")) {
+            fetchDroplet();
+          }
+        }
+      ); 
+      fetchDroplet();
+      return () => {
+        dropletSubscription();
+      }
+    }
+  }, [user])
 
   return (
     <View style={styles.container}>
