@@ -1,6 +1,7 @@
 import { databases, client, RealtimeResponse } from '@/lib/appwrite';
 import { useAuth } from '@/lib/auth-context';
 import { Droplet } from '@/types/database.type';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { Query } from 'react-native-appwrite';
@@ -12,6 +13,15 @@ const INITIAL_REGION = {
     latitudeDelta: 2,
     longitudeDelta: 2
 }
+
+const getColor = (score: number) => {
+  const t = Math.min(Math.max(score / 100, 0), 1); // Clamp score to 0-100 range
+  const r = Math.round(255 * (1 - t)); // Red decreases from 255 to 0
+  const b = Math.round(255 * t);      // Blue increases from 0 to 255
+  return `rgb(${r}, 0, ${b})`;        // Green stays 0, creating red-to-blue gradient
+};
+
+const [userLocation, setUserLocation] = useState<Number>()
 
 export default function App() {
 
@@ -59,19 +69,24 @@ export default function App() {
       <MapView style={StyleSheet.absoluteFill} 
       provider={PROVIDER_GOOGLE} 
       initialRegion={INITIAL_REGION}
+      showsMyLocationButton={true}
+      showsUserLocation={true}
       >
         {droplet?.length === 0 ? (
           <View><Text>You havent predict any water yet</Text></View>
         ) : (
           droplet?.map((droplet, key) => (
             <Marker 
+              // key={}
               coordinate={{ 
                 latitude: droplet.latitude,
                 longitude: droplet.longitude
-               }}
-              title='jakarta'
+              }}
+              title={droplet.quality.toString()}
               description='test'
-            />
+              pinColor='#fff'
+            >
+            </Marker>
           ))
         )}
 
