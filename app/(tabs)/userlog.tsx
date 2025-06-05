@@ -9,9 +9,9 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { ScrollView } from "react-native-gesture-handler";
 
 export default function AlertScreen() {
-  const { user } = useAuth()
+  const { user } = useAuth();
 
-  const [droplet, setDroplet] = useState<Droplet[]>()
+  const [droplet, setDroplet] = useState<Droplet[]>();
 
   const fetchDroplet = async () => {
     try {
@@ -25,7 +25,7 @@ export default function AlertScreen() {
       } catch (error) {
           console.error(error)
       }
-  }
+  };
 
   useEffect(() => {
     if (user) {
@@ -47,7 +47,7 @@ export default function AlertScreen() {
         dropletSubscription();
       }
     }
-  }, [user])
+  }, [user]);
 
   return (
     <View style={styles.container}>
@@ -62,8 +62,8 @@ export default function AlertScreen() {
         {droplet?.length === 0 ? (
           <View style={styles.emptyState}><Text style={styles.emptyStateText}>You havent predict any water yet</Text></View>
         ) : (
-          droplet?.map((droplet, key) => (
-              <View style={styles.cardContent}>
+          droplet?.map((droplet) => (
+              <View style={styles.cardContent} key={droplet.droplet_id}>
                   <Text style={styles.cardTitle}>{droplet.droplet_id}</Text>
                   <Text>{droplet.user_id}</Text>
                   <Text>{droplet.upload_time}</Text>

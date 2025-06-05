@@ -62,8 +62,8 @@ export default function AlertScreen() {
         {droplet?.length === 0 ? (
           <View style={styles.emptyState}><Text style={styles.emptyStateText}>You havent predict any water yet</Text></View>
         ) : (
-          droplet?.map((droplet, key) => (
-              <View style={styles.cardContent}>
+          droplet?.map((droplet) => (
+              <View style={styles.cardContent} key={droplet.droplet_id}>
                   <Text style={styles.cardTitle}>{droplet.droplet_id}</Text>
                   <Text>{droplet.user_id}</Text>
                   <Text>{droplet.upload_time}</Text>
