@@ -56,7 +56,7 @@ export default function App() {
             fetchDroplet();
           }
         }
-      ); 
+      );
       fetchDroplet();
       return () => {
         dropletSubscription();
