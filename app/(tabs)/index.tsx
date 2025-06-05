@@ -21,13 +21,13 @@ const getColor = (score: number) => {
   return `rgb(${r}, 0, ${b})`;        // Green stays 0, creating red-to-blue gradient
 };
 
-const [userLocation, setUserLocation] = useState<Number>()
 
 export default function App() {
-
+  
   const { user } = useAuth()
-
+  
   const [droplet, setDroplet] = useState<Droplet[]>()
+  const [userLocation, setUserLocation] = useState<Number>()
 
   const fetchDroplet = async () => {
     try {
@@ -75,9 +75,9 @@ export default function App() {
         {droplet?.length === 0 ? (
           <View><Text>You havent predict any water yet</Text></View>
         ) : (
-          droplet?.map((droplet, key) => (
+          droplet?.map((droplet) => (
             <Marker 
-              // key={}
+              key={droplet.droplet_id}
               coordinate={{ 
                 latitude: droplet.latitude,
                 longitude: droplet.longitude
