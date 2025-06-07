@@ -1,14 +1,14 @@
 import PhotoPreviewSection from '@/components/PhotoPreviewSection';
 import { AntDesign } from '@expo/vector-icons';
-import { CameraType, CameraView, useCameraPermissions } from 'expo-camera';
-import React from 'react';
-import { useRef, useState } from 'react';
+import { CameraCapturedPicture, CameraType, CameraView, useCameraPermissions } from 'expo-camera';
+import React, { useRef, useState } from 'react';
 import { Button, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function Camera() {
   const [facing, setFacing] = useState<CameraType>('back');
   const [permission, requestPermission] = useCameraPermissions();
-  const [photo, setPhoto] = useState<any>(null);
+  const [photo, setPhoto] = useState<CameraCapturedPicture | null>(null);
+  const [tmpQuality, setTmpQuality] = useState<number>(0);
   const cameraRef = useRef<CameraView | null>(null);
 
   if (!permission) {
@@ -43,7 +43,43 @@ export default function Camera() {
 
   const handleRetakePhoto = () => setPhoto(null);
 
-  if (photo) return <PhotoPreviewSection photo={photo} handleRetakePhoto={handleRetakePhoto} />
+  const handleAnalyzePhoto = async () => {
+    if (photo === null) {
+      console.error('Photo is null.')
+      return;
+    }
+    const b64 = photo.base64;
+    if (b64 === undefined) {
+      console.error('Photo base64 is undefined.');
+      return;
+    }
+    const formData = new FormData();
+    formData.append('photo', b64);
+    
+    try {
+      console.log('Sending request...');
+      const response = await fetch(process.env.EXPO_PUBLIC_API_PREDICT_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+        },
+        body: formData,
+      });
+      console.log('Response received.');
+  
+      if (response.ok) {
+        const data = await response.json();
+        setTmpQuality(data.confidence);
+        console.log(`Confidence: ${data.confidence}`);
+      } else {
+        console.error(`API error with status code ${response.status}`);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  if (photo) return <PhotoPreviewSection photo={photo} handleRetakePhoto={handleRetakePhoto} handleAnalyzePhoto={handleAnalyzePhoto} />
 
   return (
     <View style={styles.container}>

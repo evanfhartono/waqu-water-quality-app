@@ -5,10 +5,12 @@ import { TouchableOpacity, SafeAreaView, Image, StyleSheet, View } from 'react-n
 
 const PhotoPreviewSection = ({
     photo,
-    handleRetakePhoto
+    handleRetakePhoto,
+    handleAnalyzePhoto
 }: {
     photo: CameraCapturedPicture;
     handleRetakePhoto: () => void;
+    handleAnalyzePhoto: () => void;
 }) => (
     <SafeAreaView style={styles.container}>
         <View style={styles.box}>
@@ -21,6 +23,9 @@ const PhotoPreviewSection = ({
         <View style={styles.buttonContainer}>
             <TouchableOpacity style={styles.button} onPress={handleRetakePhoto}>
                 <Fontisto name='trash' size={36} color='black' />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.button} onPress={handleAnalyzePhoto}>
+                <Fontisto name='check' size={36} color='black' />
             </TouchableOpacity>
         </View>
     </SafeAreaView>
