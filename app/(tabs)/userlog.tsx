@@ -20,7 +20,7 @@ export default function AlertScreen() {
             "6839e96e001331fdd3c7",
             [Query.equal("user_id", user?.$id ?? "")]
           );
-          console.log(response.documents)
+          // console.log(response.documents)
           setDroplet(response.documents as Droplet[]);
       } catch (error) {
           console.error(error)

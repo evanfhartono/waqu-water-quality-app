@@ -7,42 +7,7 @@ import { Text } from "react-native-paper";
 import { Query } from "react-native-appwrite";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { ScrollView } from "react-native-gesture-handler";
-
-const getColor = (score: number) => {
-  const t = Math.min(Math.max(score / 100, 0), 1); // Clamp score to 0-100 range
-
-  // Map score to hue: 0 (red) to 120 (green) in HSL
-  const hue = 120 * t; // Hue from 0° (red) to 120° (green)
-  const saturation = 1; // Full saturation (100%)
-  const lightness = 0.5; // 50% lightness for vibrant colors
-
-  // Convert HSL to RGB
-  const c = (1 - Math.abs(2 * lightness - 1)) * saturation; // Chroma
-  const x = c * (1 - Math.abs(((hue / 60) % 2) - 1));
-  const m = lightness - c / 2;
-
-  let r, g, b;
-  if (hue >= 0 && hue < 60) {
-    r = c;
-    g = x;
-    b = 0;
-  } else if (hue >= 60 && hue < 120) {
-    r = x;
-    g = c;
-    b = 0;
-  } else {
-    r = 0;
-    g = c;
-    b = x;
-  }
-
-  // Scale to 0-255 and adjust with m
-  r = Math.round((r + m) * 255);
-  g = Math.round((g + m) * 255);
-  b = Math.round((b + m) * 255);
-
-  return `rgb(${r}, ${g}, ${b})`;
-};
+import { getColor } from '@/components/getColor';
 
 export default function AlertScreen() {
   const { user } = useAuth()
@@ -56,7 +21,7 @@ export default function AlertScreen() {
             "6839e96e001331fdd3c7"
             // ,[Query.equal("user_id", user?.$id ?? "")]
           );
-          console.log(response.documents)
+          // console.log(response.documents)
           setDroplet(response.documents as Droplet[]);
       } catch (error) {
           console.error(error)

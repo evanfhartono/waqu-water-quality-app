@@ -3,9 +3,11 @@ import { useAuth } from '@/lib/auth-context';
 import { Droplet } from '@/types/database.type';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Button, StyleSheet, Text, View, Alert } from 'react-native';
 import { Query } from 'react-native-appwrite';
 import MapView, { Callout, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import { getColor } from '@/components/getColor';
+import * as Location from 'expo-location';
 
 const INITIAL_REGION = {
   latitude: -6,
@@ -14,42 +16,10 @@ const INITIAL_REGION = {
   longitudeDelta: 2,
 };
 
-const getColor = (score: number) => {
-  const t = Math.min(Math.max(score / 100, 0), 1);
-  const hue = 120 * t;
-  const saturation = 1;
-  const lightness = 0.5;
-
-  const c = (1 - Math.abs(2 * lightness - 1)) * saturation;
-  const x = c * (1 - Math.abs(((hue / 60) % 2) - 1));
-  const m = lightness - c / 2;
-
-  let r, g, b;
-  if (hue >= 0 && hue < 60) {
-    r = c;
-    g = x;
-    b = 0;
-  } else if (hue >= 60 && hue < 120) {
-    r = x;
-    g = c;
-    b = 0;
-  } else {
-    r = 0;
-    g = c;
-    b = x;
-  }
-
-  r = Math.round((r + m) * 255);
-  g = Math.round((g + m) * 255);
-  b = Math.round((b + m) * 255);
-
-  return `rgb(${r}, ${g}, ${b})`;
-};
-
 export default function App() {
   const { user } = useAuth();
   const [droplet, setDroplet] = useState<Droplet[]>();
-  const [userLocation, setUserLocation] = useState<Number>();
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
   const fetchDroplet = async () => {
     try {
@@ -57,34 +27,65 @@ export default function App() {
         '6839e760003b3099528a',
         '6839e96e001331fdd3c7'
       );
-      console.log(response.documents);
+      // console.log(response.documents);
       setDroplet(response.documents as Droplet[]);
     } catch (error) {
       console.error(error);
     }
   };
 
+  // Function to get current location (can be called by button or on mount)
+  const getCurrentLocation = async () => {
+    let { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'Permission to access location was denied. Please enable it in your device settings.');
+      return;
+    }
+
+    try {
+      let location = await Location.getCurrentPositionAsync({});
+      setUserLocation({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+      console.log('Current Location:', location.coords.latitude, location.coords.longitude);
+      // Alert.alert(
+      //   'Current Location',
+      //   `Latitude: ${location.coords.latitude}\nLongitude: ${location.coords.longitude}`
+      // );
+    } catch (error) {
+      console.error("Error getting current location:", error);
+      Alert.alert('Location Error', 'Could not retrieve your current location.');
+    }
+  };
+
+  // Effect to fetch droplets and request initial location on component mount
   useEffect(() => {
     if (user) {
+      // Appwrite real-time subscription
       const channel = `databases.6839e760003b3099528a.collections.6839e96e001331fdd3c7.documents`;
       const dropletSubscription = client.subscribe(
         channel,
         (response: RealtimeResponse) => {
-          if (response.events.includes('databases.*.collections.*.documents.*.create')) {
-            fetchDroplet();
-          } else if (response.events.includes('databases.*.collections.*.documents.*.update')) {
-            fetchDroplet();
-          } else if (response.events.includes('databases.*.collections.*.documents.*.delete')) {
+          if (
+            response.events.includes('databases.*.collections.*.documents.*.create') ||
+            response.events.includes('databases.*.collections.*.documents.*.update') ||
+            response.events.includes('databases.*.collections.*.documents.*.delete')
+          ) {
             fetchDroplet();
           }
         }
       );
       fetchDroplet();
+
+      // Request location permission and get initial location
+      getCurrentLocation();
+
       return () => {
-        dropletSubscription();
+        dropletSubscription(); // Clean up Appwrite subscription
       };
     }
-  }, [user]);
+  }, [user]); // Rerun effect if user changes (e.g., login/logout)
 
   return (
     <View style={{ flex: 1 }}>
@@ -92,8 +93,8 @@ export default function App() {
         style={StyleSheet.absoluteFill}
         provider={PROVIDER_GOOGLE}
         initialRegion={INITIAL_REGION}
-        showsMyLocationButton={true}
         showsUserLocation={true}
+        showsMyLocationButton={true}
       >
         {droplet?.length === 0 ? (
           <View>
@@ -109,26 +110,39 @@ export default function App() {
               }}
               title={droplet.quality.toString()}
               description="test"
-              anchor={{ x: 0.5, y: 1 }} // Anchor bottom-center of the icon to the coordinate
+              anchor={{ x: 0.5, y: 1 }}
             >
               <View style={styles.markerContainer}>
                 <MaterialCommunityIcons
                   name="circle"
-                  size={40} // Increased size to fit text
+                  size={40}
                   color={getColor(droplet.quality)}
                 />
                 <Text style={styles.markerText}>{droplet.quality}</Text>
               </View>
-              {/* <Callout>
-                <View style={styles.bubble}>
-                  <Text style={styles.name}>Water Quality: {droplet.quality}</Text>
-                  <Text>Description: test</Text>
-                </View>
-              </Callout> */}
             </Marker>
           ))
         )}
+        {/* Optionally, you can add a marker for the current user location if available */}
+        {/* {userLocation && (
+          <Marker
+            coordinate={userLocation}
+            title="My Location"
+            pinColor="blue" // Or any other color to distinguish
+          />
+        )} */}
+        {/* {userLocation && (
+          <Marker
+            coordinate={userLocation}
+            title="My Current Location"
+            pinColor="blue"
+          />
+        )} */}
       </MapView>
+
+      <View style={styles.buttonContainer}>
+        <Button title="Get Current Location" onPress={getCurrentLocation} />
+      </View>
     </View>
   );
 }
@@ -137,11 +151,11 @@ const styles = StyleSheet.create({
   markerContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative', // Ensure text can be positioned absolutely
+    position: 'relative',
   },
   markerText: {
     position: 'absolute',
-    color: '#fff', // White text for contrast
+    color: '#fff',
     fontSize: 14,
     fontWeight: 'bold',
     textAlign: 'center',
@@ -179,5 +193,11 @@ const styles = StyleSheet.create({
     borderWidth: 16,
     alignSelf: 'center',
     marginTop: -0.5,
+  },
+  buttonContainer: {
+    position: 'absolute',
+    bottom: 20,
+    alignSelf: 'center',
+    zIndex: 1,
   },
 });
