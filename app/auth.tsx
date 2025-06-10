@@ -6,6 +6,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { Button, Text, TextInput, useTheme } from "react-native-paper";
@@ -27,6 +28,13 @@ export default function AuthScreen() {
   const handleAuth = async () => {
     if (!email || !password) {
       setError("Please fill in all fields.");
+      return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError("Please enter a valid email address.");
       return;
     }
 
@@ -80,7 +88,10 @@ export default function AuthScreen() {
               keyboardType="email-address"
               placeholder="example@gmail.com"
               mode="outlined"
-              style={styles.input}
+              style={[styles.input, { backgroundColor: '#F5F5F5' }]}
+              textColor="#000000"
+              outlineColor="#767b81"
+              activeOutlineColor="#3399ff"
               onChangeText={setEmail}
             />
 
@@ -89,7 +100,10 @@ export default function AuthScreen() {
               autoCapitalize="none"
               mode="outlined"
               secureTextEntry
-              style={styles.input}
+              style={[styles.input, { backgroundColor: '#F5F5F5' }]}
+              textColor="#000000"
+              outlineColor="#767b81"
+              activeOutlineColor="#3399ff"
               onChangeText={setPassword}
             />
 
@@ -97,19 +111,22 @@ export default function AuthScreen() {
               <Text style={{ color: theme.colors.error }}>{error}</Text>
             )}
 
-            <Button mode="contained" style={styles.button} onPress={handleAuth}>
+            <Button mode="contained" style={styles.button} 
+            labelStyle={{ color: '#FFFFFF' }} // Set text color to white
+            onPress={handleAuth}>
               {isSignUp ? "Sign Up" : "Sign In"}
             </Button>
 
-            <Button
-              mode="text"
-              onPress={handleSwitchMode}
-              style={styles.switchModeButton}
-            >
-              {isSignUp
-                ? "Already have an account? Sign In"
-                : "Don't have an account? Sign Up"}
-            </Button>
+            <TouchableOpacity onPress={handleSwitchMode} style={styles.switchModeButton}>
+              <Text style={{ textAlign: 'center' }}>
+                <Text style={{ color: '#767b81' }}>
+                  {isSignUp ? "Already have an account? " : "Don't have an account? "}
+                </Text>
+                <Text style={{ color: '#3399ff' }}>
+                  {isSignUp ? "Sign In" : "Sign Up"}
+                </Text>
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </ImageBackground>
@@ -127,13 +144,21 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.85)", // White overlay for readability
+    backgroundColor: "rgba(255, 255, 255, 0.3)", // White overlay for readability
     padding: 16,
     justifyContent: "center",
   },
   content: {
     padding: 16,
     justifyContent: "center",
+    backgroundColor: "white", // White background for the box
+    borderRadius: 12, // Rounded corners
+    marginHorizontal: 16, // Margin to avoid touching screen edges
+    shadowColor: "#000", // Shadow for depth (optional)
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5, // For Android shadow
   },
   title: {
     textAlign: "center",
@@ -145,9 +170,12 @@ const styles = StyleSheet.create({
   },
   button: {
     marginTop: 8,
-    backgroundColor: "lightblue",
+    backgroundColor: "#3399ff",
   },
   switchModeButton: {
     marginTop: 16,
+    alignItems: 'center', // Center children (Text) horizontally
+    justifyContent: 'center', // Center children vertically
+    paddingVertical: 8, // Mimic Button padding
   },
 });
