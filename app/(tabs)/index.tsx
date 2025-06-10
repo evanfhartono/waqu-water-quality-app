@@ -8,6 +8,7 @@ import { Query } from 'react-native-appwrite';
 import MapView, { Callout, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { getColor } from '@/components/getColor';
 import * as Location from 'expo-location';
+import { useLocalSearchParams } from 'expo-router'; // Import useLocalSearchParams
 
 const INITIAL_REGION = {
   latitude: -6,
@@ -20,6 +21,8 @@ export default function App() {
   const { user } = useAuth();
   const [droplet, setDroplet] = useState<Droplet[]>();
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [region, setRegion] = useState(INITIAL_REGION); // State for dynamic region
+  const { lat, lng } = useLocalSearchParams(); // Get navigation parameters
 
   const fetchDroplet = async () => {
     try {
@@ -27,42 +30,33 @@ export default function App() {
         '6839e760003b3099528a',
         '6839e96e001331fdd3c7'
       );
-      // console.log(response.documents);
       setDroplet(response.documents as Droplet[]);
     } catch (error) {
       console.error(error);
     }
   };
 
-  // Function to get current location (can be called by button or on mount)
   const getCurrentLocation = async () => {
     let { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission Denied', 'Permission to access location was denied. Please enable it in your device settings.');
+      Alert.alert('Permission Denied', 'Permission to access location was denied.');
       return;
     }
-
     try {
       let location = await Location.getCurrentPositionAsync({});
       setUserLocation({
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
       });
-      console.log('Current Location:', location.coords.latitude, location.coords.longitude);
-      // Alert.alert(
-      //   'Current Location',
-      //   `Latitude: ${location.coords.latitude}\nLongitude: ${location.coords.longitude}`
-      // );
     } catch (error) {
       console.error("Error getting current location:", error);
       Alert.alert('Location Error', 'Could not retrieve your current location.');
     }
   };
 
-  // Effect to fetch droplets and request initial location on component mount
+  // Effect to fetch droplets and get initial location
   useEffect(() => {
     if (user) {
-      // Appwrite real-time subscription
       const channel = `databases.6839e760003b3099528a.collections.6839e96e001331fdd3c7.documents`;
       const dropletSubscription = client.subscribe(
         channel,
@@ -77,28 +71,37 @@ export default function App() {
         }
       );
       fetchDroplet();
-
-      // Request location permission and get initial location
       getCurrentLocation();
-
       return () => {
-        dropletSubscription(); // Clean up Appwrite subscription
+        dropletSubscription();
       };
     }
-  }, [user]); // Rerun effect if user changes (e.g., login/logout)
+  }, [user]);
+
+  // Effect to update map region based on navigation parameters
+  useEffect(() => {
+    if (lat && lng) {
+      setRegion({
+        latitude: parseFloat(lat as string), // Convert string to number
+        longitude: parseFloat(lng as string),
+        latitudeDelta: 0.01, // Adjust zoom level
+        longitudeDelta: 0.01,
+      });
+    }
+  }, [lat, lng]);
 
   return (
     <View style={{ flex: 1 }}>
       <MapView
         style={StyleSheet.absoluteFill}
         provider={PROVIDER_GOOGLE}
-        initialRegion={INITIAL_REGION}
+        region={region} // Use dynamic region instead of initialRegion
         showsUserLocation={true}
         showsMyLocationButton={true}
       >
         {droplet?.length === 0 ? (
           <View>
-            <Text>You haven't predicted any water yet</Text>
+            <Text>You haven’t predicted any water yet</Text>
           </View>
         ) : (
           droplet?.map((droplet) => (
@@ -123,21 +126,6 @@ export default function App() {
             </Marker>
           ))
         )}
-        {/* Optionally, you can add a marker for the current user location if available */}
-        {/* {userLocation && (
-          <Marker
-            coordinate={userLocation}
-            title="My Location"
-            pinColor="blue" // Or any other color to distinguish
-          />
-        )} */}
-        {/* {userLocation && (
-          <Marker
-            coordinate={userLocation}
-            title="My Current Location"
-            pinColor="blue"
-          />
-        )} */}
       </MapView>
 
       <View style={styles.buttonContainer}>
@@ -146,6 +134,8 @@ export default function App() {
     </View>
   );
 }
+
+// Styles remain the same (already provided in your code)
 
 const styles = StyleSheet.create({
   markerContainer: {
