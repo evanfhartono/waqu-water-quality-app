@@ -127,6 +127,15 @@ export default function AuthScreen() {
                 </Text>
               </Text>
             </TouchableOpacity>
+
+            <Button
+              mode="outlined"
+              style={styles.homeButton}
+              labelStyle={{ color: '#3399ff' }}
+              onPress={() => router.replace("/")}>
+              Go to Home
+            </Button>
+
           </View>
         </View>
       </ImageBackground>
@@ -178,4 +187,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center', // Center children vertically
     paddingVertical: 8, // Mimic Button padding
   },
+  homeButton: {
+  marginTop: 32,
+  borderColor: "#3399ff",
+  borderWidth: 1,
+},
 });
