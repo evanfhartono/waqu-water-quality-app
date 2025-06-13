@@ -1,6 +1,6 @@
 // npx expo install react-native-appwrite react-native-url-polyfill
 // config with appwrite api
-import {Account, Client, Databases} from 'react-native-appwrite';
+import {Account, Client, Databases, Functions} from 'react-native-appwrite';
 
 export const client = new Client()
   .setEndpoint("https://fra.cloud.appwrite.io/v1"!)
@@ -21,3 +21,5 @@ export interface RealtimeResponse {
   events: string[];
   payload: any;
 }
+
+export const functions = new Functions(client);

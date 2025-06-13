@@ -5,10 +5,11 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import { Button, StyleSheet, Text, View, Alert } from 'react-native';
 import { Query } from 'react-native-appwrite';
-import MapView, { Callout, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Circle, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { getColor } from '@/components/getColor';
 import * as Location from 'expo-location';
-import { useLocalSearchParams } from 'expo-router'; // Import useLocalSearchParams
+import { useLocalSearchParams } from 'expo-router';
+import { WATER_SOURCES } from '@/assets/waterSources';
 
 const INITIAL_REGION = {
   latitude: -6,
@@ -17,12 +18,77 @@ const INITIAL_REGION = {
   longitudeDelta: 2,
 };
 
+// Helper function to format ISO date to dd/mm/yyyy
+const formatDate = (isoDate: string): string => {
+  const date = new Date(isoDate);
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
+// Haversine formula to calculate distance between two coordinates (in meters)
+const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+  const R = 6371e3; // Earth's radius in meters
+  const φ1 = (lat1 * Math.PI) / 180;
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+            Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c; // Distance in meters
+};
+
+// Calculate average quality of droplets within a water source's radius
+const getAverageQuality = (
+  droplets: Droplet[] | undefined,
+  sourceLat: number,
+  sourceLon: number,
+  radius: number
+): number | null => {
+  if (!droplets || droplets.length === 0) return null;
+
+  const nearbyDroplets = droplets.filter((droplet) => {
+    const distance = calculateDistance(droplet.latitude, droplet.longitude, sourceLat, sourceLon);
+    return distance <= radius;
+  });
+
+  if (nearbyDroplets.length === 0) return null;
+
+  const totalQuality = nearbyDroplets.reduce((sum, droplet) => sum + droplet.quality, 0);
+  const averageQuality = Math.round(totalQuality / nearbyDroplets.length);
+  console.log(`Average quality for ${sourceLat}, ${sourceLon}: ${averageQuality}`);
+  return averageQuality;
+};
+
+// Convert getColor output to rgba for Circle fillColor
+const getCircleFillColor = (quality: number | null): string => {
+  if (quality === null) {
+    return 'rgba(0, 0, 255, 0.05)'; // Default color if no droplets
+  }
+  const color = getColor(quality); // e.g., "#FF0000" or "rgb(255, 0, 0)"
+  // Convert hex or rgb to rgba
+  if (color.startsWith('#')) {
+    const r = parseInt(color.slice(1, 3), 16);
+    const g = parseInt(color.slice(3, 5), 16);
+    const b = parseInt(color.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, 0.1)`;
+  } else if (color.startsWith('rgb')) {
+    const [r, g, b] = color.match(/\d+/g)!.map(Number);
+    return `rgba(${r}, ${g}, ${b}, 0.1)`;
+  }
+  return 'rgba(0, 0, 255, 0.01)'; // Fallback
+};
+
 export default function App() {
   const { user } = useAuth();
   const [droplet, setDroplet] = useState<Droplet[]>();
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [region, setRegion] = useState(INITIAL_REGION); // State for dynamic region
-  const { lat, lng } = useLocalSearchParams(); // Get navigation parameters
+  const [region, setRegion] = useState(INITIAL_REGION);
+  const { lat, lng } = useLocalSearchParams();
 
   const fetchDroplet = async () => {
     try {
@@ -54,7 +120,6 @@ export default function App() {
     }
   };
 
-  // Effect to fetch droplets and get initial location
   useEffect(() => {
     if (user) {
       const channel = `databases.6839e760003b3099528a.collections.6839e96e001331fdd3c7.documents`;
@@ -78,13 +143,12 @@ export default function App() {
     }
   }, [user]);
 
-  // Effect to update map region based on navigation parameters
   useEffect(() => {
     if (lat && lng) {
       setRegion({
-        latitude: parseFloat(lat as string), // Convert string to number
+        latitude: parseFloat(lat as string),
         longitude: parseFloat(lng as string),
-        latitudeDelta: 0.01, // Adjust zoom level
+        latitudeDelta: 0.01,
         longitudeDelta: 0.01,
       });
     }
@@ -95,10 +159,34 @@ export default function App() {
       <MapView
         style={StyleSheet.absoluteFill}
         provider={PROVIDER_GOOGLE}
-        region={region} // Use dynamic region instead of initialRegion
+        region={region}
         showsUserLocation={true}
         showsMyLocationButton={true}
       >
+        {/* Water source circles */}
+        {WATER_SOURCES.map((source, index) => {
+          const averageQuality = getAverageQuality(
+            droplet,
+            source.latitude,
+            source.longitude,
+            source.radius
+          );
+          return (
+            <Circle
+              key={`water-source-${index}`}
+              center={{
+                latitude: source.latitude,
+                longitude: source.longitude,
+              }}
+              radius={source.radius}
+              strokeWidth={0} // No outline
+              fillColor={getCircleFillColor(averageQuality)} // Dynamic color based on average quality
+              zIndex={1}
+            />
+          );
+        })}
+
+        {/* Droplet markers */}
         {droplet?.length === 0 ? (
           <View>
             <Text>You haven’t predicted any water yet</Text>
@@ -111,9 +199,10 @@ export default function App() {
                 latitude: droplet.latitude,
                 longitude: droplet.longitude,
               }}
-              title={droplet.quality.toString()}
-              description="test"
+              title={`Quality: ${droplet.quality}`}
+              description={formatDate(droplet.upload_time)}
               anchor={{ x: 0.5, y: 1 }}
+              zIndex={2}
             >
               <View style={styles.markerContainer}>
                 <MaterialCommunityIcons
@@ -135,8 +224,6 @@ export default function App() {
   );
 }
 
-// Styles remain the same (already provided in your code)
-
 const styles = StyleSheet.create({
   markerContainer: {
     alignItems: 'center',
@@ -149,40 +236,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     textAlign: 'center',
-  },
-  bubble: {
-    flexDirection: 'column',
-    alignSelf: 'flex-start',
-    backgroundColor: '#fff',
-    borderRadius: 6,
-    borderColor: '#ccc',
-    borderWidth: 0.5,
-    padding: 15,
-    width: 150,
-  },
-  name: {
-    fontSize: 16,
-    marginBottom: 5,
-  },
-  image: {
-    width: 120,
-    height: 80,
-  },
-  arrow: {
-    backgroundColor: 'transparent',
-    borderColor: 'transparent',
-    borderTopColor: '#fff',
-    borderWidth: 16,
-    alignSelf: 'center',
-    marginTop: -32,
-  },
-  arrowBorder: {
-    backgroundColor: 'transparent',
-    borderColor: 'transparent',
-    borderTopColor: '#007a87',
-    borderWidth: 16,
-    alignSelf: 'center',
-    marginTop: -0.5,
   },
   buttonContainer: {
     position: 'absolute',

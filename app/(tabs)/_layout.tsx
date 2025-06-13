@@ -12,6 +12,8 @@ export default function TabsLayout() {
         headerStyle: { 
           backgroundColor: "lightblue"},
         headerShadowVisible: false, 
+        // headerShown: false,
+        headerStatusBarHeight: 0.1,
         tabBarStyle: {
           backgroundColor: "#f5f5f5",
           borderTopWidth: 0,
@@ -30,7 +32,9 @@ export default function TabsLayout() {
             <MaterialCommunityIcons 
               name="map" 
               size={size} 
-              color={color}/>
+              color={color}
+              options={{ headerShown: false }}
+              />
           )
         }}
       />
@@ -42,7 +46,9 @@ export default function TabsLayout() {
             <MaterialCommunityIcons 
               name="map-marker-alert" 
               size={size} 
-              color={color}/>
+              color={color}
+              options={{ headerShown: false }}
+              />
           )
         }}
       />
@@ -54,7 +60,9 @@ export default function TabsLayout() {
             <MaterialCommunityIcons 
               name="scan-helper" 
               size={size} 
-              color={color}/>
+              color={color}
+              options={{ headerShown: false }}
+              />
           )
         }}
       />
@@ -66,7 +74,9 @@ export default function TabsLayout() {
             <MaterialCommunityIcons 
               name="format-list-bulleted" 
               size={size} 
-              color={color}/>
+              color={color}
+              options={{ headerShown: false }}
+              />
           )
         }}
       />
@@ -78,7 +88,9 @@ export default function TabsLayout() {
             <MaterialCommunityIcons 
               name="account" 
               size={size} 
-              color={color}/>
+              color={color}
+              options={{ headerShown: false }}
+              />
           )
         }}
       />

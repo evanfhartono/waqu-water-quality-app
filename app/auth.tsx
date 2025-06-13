@@ -18,6 +18,7 @@ export default function AuthScreen() {
   const [isSignUp, setIsSignUp] = useState<boolean>(false);
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
+  const [confirmPassword, setConfirmPassword] = useState<string>("");
   const [error, setError] = useState<string | null>("");
 
   const theme = useTheme();
@@ -26,7 +27,7 @@ export default function AuthScreen() {
   const { signIn, signUp } = useAuth();
 
   const handleAuth = async () => {
-    if (!email || !password) {
+    if (!email || !password || (isSignUp && !confirmPassword)) {
       setError("Please fill in all fields.");
       return;
     }
@@ -40,6 +41,11 @@ export default function AuthScreen() {
 
     if (password.length < 6) {
       setError("Passwords must be at least 6 characters long.");
+      return;
+    }
+
+    if (isSignUp && password !== confirmPassword) {
+      setError("Passwords do not match.");
       return;
     }
 
@@ -64,6 +70,9 @@ export default function AuthScreen() {
 
   const handleSwitchMode = () => {
     setIsSignUp((prev) => !prev);
+    setError(null); // Clear error when switching modes
+    setPassword(""); // Clear password fields
+    setConfirmPassword("");
   };
 
   return (
@@ -88,11 +97,12 @@ export default function AuthScreen() {
               keyboardType="email-address"
               placeholder="example@gmail.com"
               mode="outlined"
-              style={[styles.input, { backgroundColor: '#F5F5F5' }]}
+              style={[styles.input, { backgroundColor: "#F5F5F5" }]}
               textColor="#000000"
               outlineColor="#767b81"
               activeOutlineColor="#3399ff"
               onChangeText={setEmail}
+              value={email}
             />
 
             <TextInput
@@ -100,29 +110,55 @@ export default function AuthScreen() {
               autoCapitalize="none"
               mode="outlined"
               secureTextEntry
-              style={[styles.input, { backgroundColor: '#F5F5F5' }]}
+              style={[styles.input, { backgroundColor: "#F5F5F5" }]}
               textColor="#000000"
               outlineColor="#767b81"
               activeOutlineColor="#3399ff"
               onChangeText={setPassword}
+              value={password}
             />
 
-            {error && (
-              <Text style={{ color: theme.colors.error }}>{error}</Text>
+            {isSignUp && (
+              <TextInput
+                label="Confirm Password"
+                autoCapitalize="none"
+                mode="outlined"
+                secureTextEntry
+                style={[styles.input, { backgroundColor: "#F5F5F5" }]}
+                textColor="#000000"
+                outlineColor="#767b81"
+                activeOutlineColor="#3399ff"
+                onChangeText={setConfirmPassword}
+                value={confirmPassword}
+              />
             )}
 
-            <Button mode="contained" style={styles.button} 
-            labelStyle={{ color: '#FFFFFF' }} // Set text color to white
-            onPress={handleAuth}>
+            {error && (
+              <Text style={{ color: theme.colors.error, marginBottom: 16 }}>
+                {error}
+              </Text>
+            )}
+
+            <Button
+              mode="contained"
+              style={styles.button}
+              labelStyle={{ color: "#FFFFFF" }}
+              onPress={handleAuth}
+            >
               {isSignUp ? "Sign Up" : "Sign In"}
             </Button>
 
-            <TouchableOpacity onPress={handleSwitchMode} style={styles.switchModeButton}>
-              <Text style={{ textAlign: 'center' }}>
-                <Text style={{ color: '#767b81' }}>
-                  {isSignUp ? "Already have an account? " : "Don't have an account? "}
+            <TouchableOpacity
+              onPress={handleSwitchMode}
+              style={styles.switchModeButton}
+            >
+              <Text style={{ textAlign: "center" }}>
+                <Text style={{ color: "#767b81" }}>
+                  {isSignUp
+                    ? "Already have an account? "
+                    : "Don't have an account? "}
                 </Text>
-                <Text style={{ color: '#3399ff' }}>
+                <Text style={{ color: "#3399ff" }}>
                   {isSignUp ? "Sign In" : "Sign Up"}
                 </Text>
               </Text>
@@ -174,8 +210,8 @@ const styles = StyleSheet.create({
   },
   switchModeButton: {
     marginTop: 16,
-    alignItems: 'center', // Center children (Text) horizontally
-    justifyContent: 'center', // Center children vertically
+    alignItems: "center", // Center children (Text) horizontally
+    justifyContent: "center", // Center children vertically
     paddingVertical: 8, // Mimic Button padding
   },
 });

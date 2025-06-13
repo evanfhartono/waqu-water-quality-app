@@ -53,7 +53,7 @@ export default function AlertScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text variant="headlineSmall" style={styles.title}>
-          Your Log
+          Prediction Arround You
         </Text>
       </View>
 

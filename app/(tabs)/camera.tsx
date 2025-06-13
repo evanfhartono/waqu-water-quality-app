@@ -8,13 +8,42 @@ import { Alert, Button, StyleSheet, Text, TouchableOpacity, View, ActivityIndica
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { ID } from 'react-native-appwrite';
+import { WATER_SOURCES } from '@/assets/waterSources';
+
+// Haversine formula to calculate distance between two coordinates (in meters)
+const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+  const R = 6371e3; // Earth's radius in meters
+  const φ1 = (lat1 * Math.PI) / 180;
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+            Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c; // Distance in meters
+};
+
+// Check if user is near a water source (within its specific radius)
+const isNearWaterSource = (latitude: number, longitude: number): { isNear: boolean; sourceName?: string } => {
+  for (const source of WATER_SOURCES) {
+    const distance = calculateDistance(latitude, longitude, source.latitude, source.longitude);
+    if (distance <= source.radius) {
+      console.log(`Near ${source.name}: ${distance.toFixed(2)} meters (within ${source.radius}m radius)`);
+      return { isNear: true, sourceName: source.name };
+    }
+  }
+  console.log('Not near any water source');
+  return { isNear: false };
+};
 
 export default function Camera() {
   const [facing, setFacing] = useState<CameraType>('back');
   const [permission, requestPermission] = useCameraPermissions();
   const [photo, setPhoto] = useState<CameraCapturedPicture | null>(null);
   const [tmpQuality, setTmpQuality] = useState<number>(0);
-  const [loading, setLoading] = useState<boolean>(false); // Added loading state
+  const [loading, setLoading] = useState<boolean>(false);
   const cameraRef = useRef<CameraView | null>(null);
 
   const { user } = useAuth();
@@ -45,6 +74,16 @@ export default function Camera() {
     }
   };
 
+  // Reset camera state
+  const resetCamera = async () => {
+    setFacing('back'); // Reset to back-facing camera
+    setPhoto(null); // Clear photo
+    setTmpQuality(0); // Reset quality
+    setLongitude(0); // Reset longitude
+    setLatitude(0); // Reset latitude
+    await getCurrentLocation(); // Re-fetch location
+  };
+
   if (!permission) {
     return <View />;
   }
@@ -58,6 +97,19 @@ export default function Camera() {
     );
   }
 
+  const confirmSubmission = (sourceName: string): Promise<boolean> => {
+    return new Promise((resolve) => {
+      Alert.alert(
+        'Confirm Submission',
+        `You are near ${sourceName}. Confirm submission?`,
+        [
+          { text: 'Cancel', onPress: () => resolve(false), style: 'cancel' },
+          { text: 'OK', onPress: () => resolve(true) },
+        ]
+      );
+    });
+  };
+
   const handleSubmit = async (quality: number) => {
     if (!user) {
       console.error('User is not authenticated.');
@@ -68,6 +120,20 @@ export default function Camera() {
       console.error('Invalid data:', { longitude, latitude, quality });
       Alert.alert('Invalid Data', 'Location or quality data is missing.');
       throw new Error('Invalid data');
+    }
+
+    // Check if user is near a water source
+    const { isNear, sourceName } = isNearWaterSource(latitude, longitude);
+    if (!isNear) {
+      console.error('Submission rejected: Not near a water source');
+      throw new Error('Not near a water source');
+    }
+
+    // Confirm submission
+    const confirmed = await confirmSubmission(sourceName!);
+    if (!confirmed) {
+      console.log('Submission cancelled by user');
+      throw new Error('Submission cancelled');
     }
 
     try {
@@ -116,7 +182,7 @@ export default function Camera() {
       return;
     }
 
-    setLoading(true); // Show loading screen
+    setLoading(true);
 
     const formData = new FormData();
     formData.append('photo', photo.base64);
@@ -134,28 +200,46 @@ export default function Camera() {
 
       if (response.ok) {
         const data = await response.json();
-        const quality = Math.round(data.confidence); // Convert to integer
+        const quality = Math.round(data.confidence);
         setTmpQuality(quality);
         console.log(`Confidence: ${data.confidence}, Rounded Quality: ${quality}`);
 
-        // Submit data to database
-        await handleSubmit(quality);
-
-        setLoading(false); // Hide loading screen
-
-        // Show success alert and navigate back on OK
-        Alert.alert(
-          'Submission Successful',
-          `Quality Score: ${quality}`,
-          [{ text: 'OK', onPress: () => router.back() }]
-        );
+        try {
+          await handleSubmit(quality);
+          setLoading(false);
+          Alert.alert(
+            'Submission Successful',
+            `Quality Score: ${quality}`,
+            [{ text: 'OK', onPress: async () => {
+              await resetCamera();
+              router.back();
+            } }]
+          );
+        } catch (error: any) {
+          setLoading(false);
+          if (error.message === 'Not near a water source') {
+            Alert.alert(
+              'Submission Rejected',
+              'You must be near a lake or river to submit data.',
+              [{ text: 'OK', onPress: async () => await resetCamera() }]
+            );
+          } else if (error.message === 'Submission cancelled') {
+            Alert.alert(
+              'Submission Cancelled',
+              'You cancelled the submission.',
+              [{ text: 'OK', onPress: async () => await resetCamera() }]
+            );
+          } else {
+            throw error; // Re-throw other errors to be caught below
+          }
+        }
       } else {
-        setLoading(false); // Hide loading screen
+        setLoading(false);
         console.error(`API error: ${response.status}`);
         Alert.alert('Analysis Failed', 'Could not analyze the photo.');
       }
     } catch (error) {
-      setLoading(false); // Hide loading screen
+      setLoading(false);
       console.error('Analysis error:', error);
       Alert.alert('Error', 'An error occurred. Please try again.');
     }
@@ -193,30 +277,32 @@ export default function Camera() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
   },
   camera: {
     flex: 1,
   },
   buttonContainer: {
-    flex: 1,
+    position: 'absolute',
+    bottom: 20,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
+    justifyContent: 'center',
     backgroundColor: 'transparent',
-    margin: 64,
+    paddingHorizontal: 10,
   },
   button: {
-    flex: 1,
-    alignSelf: 'flex-end',
     alignItems: 'center',
-    marginHorizontal: 10,
     backgroundColor: 'gray',
     borderRadius: 10,
+    padding: 10,
+    marginHorizontal: 10,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.9)', // Semi-transparent white
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
   },
   loadingText: {
     marginTop: 10,
