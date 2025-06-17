@@ -9,6 +9,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { ScrollView } from "react-native-gesture-handler";
 import { useRouter } from "expo-router";
 import { getColor } from '@/components/getColor'; // Ensure this is correctly imported
+import { LinearGradient } from "expo-linear-gradient";
 
 export default function AlertScreen() {
   const { user } = useAuth();
@@ -18,8 +19,9 @@ export default function AlertScreen() {
   const fetchDroplet = async () => {
     try {
       const response = await databases.listDocuments(
-        "6839e760003b3099528a",
-        "6839e96e001331fdd3c7"
+        '6839e760003b3099528a',
+        '6839e96e001331fdd3c7',
+        [Query.equal('user_id', user?.$id ?? ''), Query.orderDesc('upload_time')]
       );
       setDroplet(response.documents as Droplet[]);
     } catch (error) {
@@ -50,59 +52,64 @@ export default function AlertScreen() {
   }, [user]);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text variant="headlineSmall" style={styles.title}>
-          Prediction Arround You
-        </Text>
-      </View>
+    <LinearGradient
+      colors={['#4c669f', '#3b5998', '#192f6a']}
+      style={styles.container}
+    >
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text variant="headlineSmall" style={styles.title}>
+            Prediction Arround You
+          </Text>
+        </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {droplet?.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateText}>You haven’t predicted any water yet</Text>
-          </View>
-        ) : (
-          droplet?.map((droplet) => (
-            <TouchableOpacity
-              key={droplet.droplet_id}
-              style={[styles.card, { borderLeftColor: getColor(droplet.quality) }]}
-              onPress={() =>
-                router.push({
-                  pathname: "/",
-                  params: { lat: droplet.latitude, lng: droplet.longitude },
-                })
-              }
-            >
-              <View style={styles.cardContent}>
-                <Text style={styles.cardTitle}>{droplet.droplet_id}</Text>
-                <View style={styles.infoRow}>
-                  <Text style={styles.label}>User:</Text>
-                  <Text style={styles.value}>{droplet.user_id}</Text>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {droplet?.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>You haven’t predicted any water yet</Text>
+            </View>
+          ) : (
+            droplet?.map((droplet) => (
+              <TouchableOpacity
+                key={droplet.droplet_id}
+                style={[styles.card, { borderLeftColor: getColor(droplet.quality) }]}
+                onPress={() =>
+                  router.push({
+                    pathname: "/",
+                    params: { lat: droplet.latitude, lng: droplet.longitude },
+                  })
+                }
+              >
+                <View style={styles.cardContent}>
+                  <Text style={styles.cardTitle}>{droplet.droplet_id}</Text>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.label}>User:</Text>
+                    <Text style={styles.value}>{droplet.user_id}</Text>
+                  </View>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.label}>Time:</Text>
+                    <Text style={styles.value}>{droplet.upload_time}</Text>
+                  </View>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.label}>Quality:</Text>
+                    <Text style={[styles.value, { color: getColor(droplet.quality) }]}>
+                      {droplet.quality}
+                    </Text>
+                  </View>
+                  <View style={styles.iconContainer}>
+                    <MaterialCommunityIcons
+                      name="water"
+                      size={18}
+                      color={getColor(droplet.quality)}
+                    />
+                  </View>
                 </View>
-                <View style={styles.infoRow}>
-                  <Text style={styles.label}>Time:</Text>
-                  <Text style={styles.value}>{droplet.upload_time}</Text>
-                </View>
-                <View style={styles.infoRow}>
-                  <Text style={styles.label}>Quality:</Text>
-                  <Text style={[styles.value, { color: getColor(droplet.quality) }]}>
-                    {droplet.quality}
-                  </Text>
-                </View>
-                <View style={styles.iconContainer}>
-                  <MaterialCommunityIcons
-                    name="fire"
-                    size={18}
-                    color={getColor(droplet.quality)}
-                  />
-                </View>
-              </View>
-            </TouchableOpacity>
-          ))
-        )}
-      </ScrollView>
-    </View>
+              </TouchableOpacity>
+            ))
+          )}
+        </ScrollView>
+      </View>
+    </LinearGradient>
   );
 }
 
@@ -110,7 +117,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
-    backgroundColor: "#f5f5f5",
+    // backgroundColor: "#f5f5f5",
   },
   header: {
     flexDirection: "row",

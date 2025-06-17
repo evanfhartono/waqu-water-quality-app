@@ -1,9 +1,13 @@
-import { useState } from "react";
-import { View, StyleSheet, Alert, Modal } from "react-native";
+import { useState, useEffect } from "react";
+import { View, StyleSheet, Alert, Modal, TouchableOpacity } from "react-native";
 import { Avatar, Menu, Button, Divider, TextInput, Text } from "react-native-paper";
 import { useAuth } from "@/lib/auth-context";
-import { account, functions } from "@/lib/appwrite";
+import { account, functions, databases } from "@/lib/appwrite";
 import { useRouter } from "expo-router";
+import { Query } from "react-native-appwrite";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import * as Animatable from "react-native-animatable";
 
 export default function ProfileScreen() {
   const { signOut, user } = useAuth();
@@ -15,7 +19,27 @@ export default function ProfileScreen() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [streakCount, setStreakCount] = useState(0);
   const router = useRouter();
+
+  useEffect(() => {
+    const fetchStreakCount = async () => {
+      try {
+        const response = await databases.listDocuments(
+          '6839e760003b3099528a',
+          '6839e96e001331fdd3c7',
+          [Query.equal("user_id", user?.$id ?? "")]
+        );
+        setStreakCount(response.total);
+      } catch (error) {
+        console.error("Error fetching streak count:", error);
+      }
+    };
+
+    if (user) {
+      fetchStreakCount();
+    }
+  }, [user]);
 
   const openMenu = () => setMenuVisible(true);
   const closeMenu = () => setMenuVisible(false);
@@ -68,28 +92,23 @@ export default function ProfileScreen() {
     setIsDeletingAccount(true);
 
     try {
-      // Verify password
       await account.updatePassword(confirmPassword, confirmPassword);
-      // Get user ID
       const userData = await account.get();
       const userId = userData.$id;
-      // Call server-side function to delete account
       const response = await functions.createExecution(
-        'deleteUser', // Double-check this matches the Function ID in the console
+        'deleteUser',
         JSON.stringify({ userId }),
         false
       );
-      console.log("Function response:", response); // Debug log
+      console.log("Function response:", response);
       const result = JSON.parse(response.responseBody);
       if (!result.success) {
         throw new Error(result.error || "Failed to delete account.");
       }
-      // Clear client-side session
       await account.deleteSession('current');
       Alert.alert("Success", "Account deleted successfully.");
       setConfirmPassword("");
       setDeleteAccountModalVisible(false);
-      // Redirect to sign-in screen
       router.replace("/auth");
     } catch (error) {
       if (error instanceof Error) {
@@ -107,19 +126,31 @@ export default function ProfileScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.profileContainer}>
-        <Avatar.Icon size={100} icon="account-circle" style={styles.avatar} />
+    <LinearGradient
+      colors={['#4c669f', '#3b5998', '#192f6a']}
+      style={styles.container}
+    >
+      <Animatable.View animation="fadeInUp" duration={800} style={styles.profileCard}>
+        <Avatar.Icon size={120} icon="account-circle" style={styles.avatar} />
         <Text style={styles.username}>{user?.email || "User"}</Text>
-      </View>
+        <View style={styles.streakContainer}>
+          <MaterialCommunityIcons
+            name="water"
+            size={Math.min(40 + Math.log(streakCount + 1) * 10, 800)}
+            color="lightblue"
+          />
+          <Text style={styles.streakText}>{streakCount}</Text>
+        </View>
+      </Animatable.View>
+
       <View style={styles.menuContainer}>
         <Menu
           visible={menuVisible}
           onDismiss={closeMenu}
           anchor={
-            <Button icon="menu" onPress={openMenu} style={styles.menuButton}>
-              Menu
-            </Button>
+            <TouchableOpacity onPress={openMenu}>
+              <MaterialCommunityIcons name="dots-vertical" size={24} color="#fff" />
+            </TouchableOpacity>
           }
           anchorPosition="bottom"
           contentStyle={styles.menuContent}
@@ -130,28 +161,25 @@ export default function ProfileScreen() {
               setChangePasswordModalVisible(true);
             }}
             title="Change Password"
+            leadingIcon="lock"
           />
-          {/* <Menu.Item
-            onPress={() => {
-              closeMenu();
-              setDeleteAccountModalVisible(true);
-            }}
-            title="Delete Account"
-          /> */}
           <Divider />
-          <Menu.Item onPress={handleSignOut} title="Sign Out" />
+          <Menu.Item
+            onPress={handleSignOut}
+            title="Sign Out"
+            leadingIcon="logout"
+          />
         </Menu>
       </View>
 
-      {/* Change Password Modal */}
       <Modal
-        animationType="slide"
+        animationType="fade"
         transparent={true}
         visible={changePasswordModalVisible}
         onRequestClose={() => setChangePasswordModalVisible(false)}
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
+        <View style={styles.modalOverlay}>
+          <Animatable.View animation="zoomIn" duration={300} style={styles.modalContent}>
             <Text style={styles.modalTitle}>Change Password</Text>
             <TextInput
               label="Current Password"
@@ -159,8 +187,7 @@ export default function ProfileScreen() {
               onChangeText={setCurrentPassword}
               secureTextEntry
               style={styles.input}
-              outlineColor="#767b81"
-              activeOutlineColor="#3399ff"
+              theme={{ colors: { primary: '#3399ff', background: '#fff' } }}
             />
             <TextInput
               label="New Password"
@@ -168,8 +195,7 @@ export default function ProfileScreen() {
               onChangeText={setNewPassword}
               secureTextEntry
               style={styles.input}
-              outlineColor="#767b81"
-              activeOutlineColor="#3399ff"
+              theme={{ colors: { primary: '#3399ff', background: '#fff' } }}
             />
             <Button
               mode="contained"
@@ -177,129 +203,127 @@ export default function ProfileScreen() {
               loading={isChangingPassword}
               disabled={isChangingPassword}
               style={styles.button}
-              labelStyle={{ color: "#FFFFFF" }}
+              labelStyle={styles.buttonLabel}
             >
               Change Password
             </Button>
             <Button
-              mode="outlined"
+              mode="text"
               onPress={() => setChangePasswordModalVisible(false)}
               style={styles.cancelButton}
+              labelStyle={styles.cancelButtonLabel}
             >
               Cancel
             </Button>
-          </View>
+          </Animatable.View>
         </View>
       </Modal>
-
-      {/* Delete Account Modal
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={deleteAccountModalVisible}
-        onRequestClose={() => setDeleteAccountModalVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Delete Account</Text>
-            <Text style={styles.modalText}>
-              Are you sure you want to delete your account? This action cannot be undone.
-            </Text>
-            <TextInput
-              label="Confirm Password"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry
-              style={styles.input}
-              outlineColor="#767b81"
-              activeOutlineColor="#3399ff"
-            />
-            <Button
-              mode="contained"
-              onPress={handleDeleteAccount}
-              loading={isDeletingAccount}
-              disabled={isDeletingAccount}
-              style={styles.button}
-              labelStyle={{ color: "#FFFFFF" }}
-            >
-              Delete Account
-            </Button>
-            <Button
-              mode="outlined"
-              onPress={() => setDeleteAccountModalVisible(false)}
-              style={styles.cancelButton}
-            >
-              Cancel
-            </Button>
-          </View>
-        </View>
-      </Modal> */}
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
-    backgroundColor: "#f5f5f5",
+    padding: 20,
   },
-  profileContainer: {
-    alignItems: "center",
+  profileCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    marginTop: 60,
     marginBottom: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
   },
   avatar: {
-    backgroundColor: "#3399ff",
+    backgroundColor: '#3399ff',
+    marginBottom: 16,
   },
   username: {
-    fontSize: 20,
-    fontWeight: "600",
-    marginTop: 16,
-    color: "#000000",
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginBottom: 12,
+  },
+  streakContainer: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  streakText: {
+    position: 'absolute',
+    color: '#1a1a1a',
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
   menuContainer: {
-    position: "absolute",
-    top: 16,
-    right: 16,
-  },
-  menuButton: {
-    backgroundColor: "#3399ff",
+    position: 'absolute',
+    top: 20,
+    right: 20,
   },
   menuContent: {
-    backgroundColor: "white",
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
-  modalContainer: {
+  modalOverlay: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   modalContent: {
-    width: "80%",
-    padding: 20,
-    backgroundColor: "white",
-    borderRadius: 10,
+    width: '85%',
+    padding: 24,
+    backgroundColor: 'white',
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 16,
-    textAlign: "center",
-  },
-  modalText: {
-    fontSize: 14,
-    marginBottom: 16,
-    textAlign: "center",
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginBottom: 20,
+    textAlign: 'center',
   },
   input: {
     marginBottom: 16,
-    backgroundColor: "#F5F5F5",
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
   },
   button: {
-    marginTop: 8,
-    backgroundColor: "#3399ff",
+    marginTop: 16,
+    backgroundColor: '#3399ff',
+    borderRadius: 12,
+    paddingVertical: 4,
+  },
+  buttonLabel: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   cancelButton: {
-    marginTop: 8,
+    marginTop: 12,
+    borderRadius: 12,
+  },
+  cancelButtonLabel: {
+    color: '#3399ff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

@@ -75,13 +75,19 @@ export default function Camera() {
   };
 
   // Reset camera state
+  // const resetCamera = async () => {
+  //   setFacing('back'); // Reset to back-facing camera
+  //   setPhoto(null); // Clear photo
+  //   setTmpQuality(0); // Reset quality
+  //   setLongitude(0); // Reset longitude
+  //   setLatitude(0); // Reset latitude
+  //   await getCurrentLocation(); // Re-fetch location
+  // };
+
   const resetCamera = async () => {
-    setFacing('back'); // Reset to back-facing camera
-    setPhoto(null); // Clear photo
-    setTmpQuality(0); // Reset quality
-    setLongitude(0); // Reset longitude
-    setLatitude(0); // Reset latitude
-    await getCurrentLocation(); // Re-fetch location
+    setFacing('back');
+    setPhoto(null);
+    // Add other resets as needed
   };
 
   if (!permission) {
@@ -158,21 +164,31 @@ export default function Camera() {
     }
   };
 
-  const toggleCameraFacing = () => {
-    setFacing(current => (current === 'back' ? 'front' : 'back'));
-  };
+  // const toggleCameraFacing = () => {
+  //   setFacing(current => (current === 'back' ? 'front' : 'back'));
+  // };
 
   const handleTakePhoto = async () => {
-    if (cameraRef.current) {
-      const options = {
+    console.log('Attempting to take photo...');
+    if (!cameraRef.current) {
+      console.error('Camera reference is not available.');
+      Alert.alert('Camera Error', 'Camera is not ready. Please try again.');
+      return;
+    }
+    try {
+      console.log('Camera ref exists, capturing photo...');
+      const takenPhoto = await cameraRef.current.takePictureAsync({
         quality: 1,
         base64: true,
         exif: false,
-      };
-      const takenPhoto = await cameraRef.current.takePictureAsync(options);
+      });
+      console.log('Photo captured successfully');
       setPhoto(takenPhoto);
+    } catch (error) {
+      console.error('Error taking photo:', error);
+      Alert.alert('Capture Failed', 'Could not take photo. Please try again.');
     }
-  };
+  }
 
   const handleRetakePhoto = () => setPhoto(null);
 
@@ -262,9 +278,9 @@ export default function Camera() {
     <View style={styles.container}>
       <CameraView style={styles.camera} facing={facing} ref={cameraRef}>
         <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.button} onPress={toggleCameraFacing}>
+          {/* <TouchableOpacity style={styles.button} onPress={toggleCameraFacing}>
             <AntDesign name="retweet" size={44} color="black" />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
           <TouchableOpacity style={styles.button} onPress={handleTakePhoto}>
             <AntDesign name="camera" size={44} color="black" />
           </TouchableOpacity>
