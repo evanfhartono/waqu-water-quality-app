@@ -1,14 +1,14 @@
+import { WATER_SOURCES } from '@/assets/waterSources';
 import PhotoPreviewSection from '@/components/PhotoPreviewSection';
 import { databases } from '@/lib/appwrite';
 import { useAuth } from '@/lib/auth-context';
 import { AntDesign } from '@expo/vector-icons';
 import { CameraCapturedPicture, CameraType, CameraView, useCameraPermissions } from 'expo-camera';
-import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Button, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Button, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ID } from 'react-native-appwrite';
-import { WATER_SOURCES } from '@/assets/waterSources';
 
 // Haversine formula to calculate distance between two coordinates (in meters)
 const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
@@ -44,7 +44,9 @@ export default function Camera() {
   const [photo, setPhoto] = useState<CameraCapturedPicture | null>(null);
   const [tmpQuality, setTmpQuality] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(false);
+  const [cameraReady, setCameraReady] = useState<boolean>(false);
   const cameraRef = useRef<CameraView | null>(null);
+  const [isMounted, setIsMounted] = useState<boolean>(true); // Track component mount state
 
   const { user } = useAuth();
   const [longitude, setLongitude] = useState<number>(0);
@@ -53,7 +55,11 @@ export default function Camera() {
 
   // Fetch location when the component mounts
   useEffect(() => {
+    // resetCamera();
     getCurrentLocation();
+    return () => {
+      setIsMounted(false); // Cleanup on unmount
+    };
   }, []);
 
   const getCurrentLocation = async () => {
@@ -65,29 +71,43 @@ export default function Camera() {
 
     try {
       let location = await Location.getCurrentPositionAsync({});
-      setLongitude(location.coords.longitude);
-      setLatitude(location.coords.latitude);
-      console.log('Current Location:', location.coords.latitude, location.coords.longitude);
+      if (isMounted) {
+        setLongitude(location.coords.longitude);
+        setLatitude(location.coords.latitude);
+        console.log('Current Location:', location.coords.latitude, location.coords.longitude);
+      }
     } catch (error) {
       console.error('Error getting location:', error);
       Alert.alert('Location Error', 'Could not retrieve your location.');
     }
   };
 
-  // Reset camera state
-  // const resetCamera = async () => {
-  //   setFacing('back'); // Reset to back-facing camera
-  //   setPhoto(null); // Clear photo
-  //   setTmpQuality(0); // Reset quality
-  //   setLongitude(0); // Reset longitude
-  //   setLatitude(0); // Reset latitude
-  //   await getCurrentLocation(); // Re-fetch location
-  // };
-
+  // Reset camera state to initial values
   const resetCamera = async () => {
+    console.log('Resetting camera state...');
     setFacing('back');
     setPhoto(null);
-    // Add other resets as needed
+    setTmpQuality(0);
+    setLongitude(0);
+    setLatitude(0);
+    setCameraReady(false);
+    setLoading(false);
+    cameraRef.current = null; // Clear camera reference
+    await getCurrentLocation();
+    // Force re-render by toggling a key state if needed
+    setTimeout(() => {
+      if (isMounted) {
+        setCameraReady(true); // Re-enable camera after a brief delay
+      }
+    }, 100);
+  };
+
+  // Handle camera ready event
+  const handleCameraReady = () => {
+    console.log('Camera is ready');
+    if (isMounted) {
+      setCameraReady(true);
+    }
   };
 
   if (!permission) {
@@ -122,26 +142,6 @@ export default function Camera() {
       throw new Error('User not authenticated');
     }
 
-    if (isNaN(longitude) || isNaN(latitude) || isNaN(quality)) {
-      console.error('Invalid data:', { longitude, latitude, quality });
-      Alert.alert('Invalid Data', 'Location or quality data is missing.');
-      throw new Error('Invalid data');
-    }
-
-    // Check if user is near a water source
-    const { isNear, sourceName } = isNearWaterSource(latitude, longitude);
-    if (!isNear) {
-      console.error('Submission rejected: Not near a water source');
-      throw new Error('Not near a water source');
-    }
-
-    // Confirm submission
-    const confirmed = await confirmSubmission(sourceName!);
-    if (!confirmed) {
-      console.log('Submission cancelled by user');
-      throw new Error('Submission cancelled');
-    }
-
     try {
       await databases.createDocument(
         '6839e760003b3099528a',
@@ -164,14 +164,10 @@ export default function Camera() {
     }
   };
 
-  // const toggleCameraFacing = () => {
-  //   setFacing(current => (current === 'back' ? 'front' : 'back'));
-  // };
-
   const handleTakePhoto = async () => {
     console.log('Attempting to take photo...');
-    if (!cameraRef.current) {
-      console.error('Camera reference is not available.');
+    if (!cameraRef.current || !cameraReady) {
+      console.error('Camera is not ready or reference is missing.');
       Alert.alert('Camera Error', 'Camera is not ready. Please try again.');
       return;
     }
@@ -183,18 +179,52 @@ export default function Camera() {
         exif: false,
       });
       console.log('Photo captured successfully');
-      setPhoto(takenPhoto);
+      if (isMounted) {
+        setPhoto(takenPhoto);
+      }
     } catch (error) {
-      console.error('Error taking photo:', error);
+      console.log('Error taking photo:', error);
       Alert.alert('Capture Failed', 'Could not take photo. Please try again.');
     }
-  }
+  };
 
-  const handleRetakePhoto = () => setPhoto(null);
+  const handleRetakePhoto = () => {
+    console.log('Retaking photo, resetting to camera view...');
+    if (isMounted) {
+      setPhoto(null);
+      setCameraReady(false);
+      setTimeout(() => {
+        if (isMounted) {
+          setCameraReady(true); // Re-enable camera after a brief delay
+        }
+      }, 100);
+    }
+  };
 
   const handleAnalyzePhoto = async () => {
+    if (isNaN(longitude) || isNaN(latitude)) {
+      console.error('Invalid data:', { longitude, latitude });
+      Alert.alert('Invalid Data', 'Location or quality data is missing.');
+      throw new Error('Invalid data');
+    }
+
+    // Check if user is near a water source
+    const { isNear, sourceName } = isNearWaterSource(latitude, longitude);
+    if (!isNear) {
+      Alert.alert('Submission rejected: Not near a water source');
+      throw new Error('Not near a water source');
+    }
+
+    // Confirm submission
+    const confirmed = await confirmSubmission(sourceName!);
+    if (!confirmed) {
+      console.log('Submission cancelled by user');
+      throw new Error('Submission cancelled');
+    }
+
     if (!photo || !photo.base64) {
       console.error('Photo or base64 data is missing.');
+      Alert.alert('Error', 'Photo data is missing.');
       return;
     }
 
@@ -204,7 +234,7 @@ export default function Camera() {
     formData.append('photo', photo.base64);
 
     try {
-      console.log('Sending request...');
+      console.log('Sending request to API...');
       const response = await fetch('https://waqu.azurewebsites.net/api/predict', {
         method: 'POST',
         headers: {
@@ -228,7 +258,12 @@ export default function Camera() {
             `Quality Score: ${quality}`,
             [{ text: 'OK', onPress: async () => {
               await resetCamera();
-              router.back();
+              // Avoid immediate navigation to ensure state is reset
+              setTimeout(() => {
+                if (isMounted) {
+                  router.back();
+                }
+              }, 100);
             } }]
           );
         } catch (error: any) {
@@ -246,7 +281,7 @@ export default function Camera() {
               [{ text: 'OK', onPress: async () => await resetCamera() }]
             );
           } else {
-            throw error; // Re-throw other errors to be caught below
+            throw error;
           }
         }
       } else {
@@ -257,7 +292,7 @@ export default function Camera() {
     } catch (error) {
       setLoading(false);
       console.error('Analysis error:', error);
-      Alert.alert('Error', 'An error occurred. Please try again.');
+      Alert.alert('Error', 'An error occurred during analysis. Please try again.');
     }
   };
 
@@ -274,15 +309,25 @@ export default function Camera() {
     return <PhotoPreviewSection photo={photo} handleRetakePhoto={handleRetakePhoto} handleAnalyzePhoto={handleAnalyzePhoto} />;
   }
 
+    const toggleCameraFacing = () => {
+    setFacing(current => (current === 'back' ? 'front' : 'back'));
+  };
+
   return (
-    <View style={styles.container}>
-      <CameraView style={styles.camera} facing={facing} ref={cameraRef}>
+    <View style={styles.container} key={cameraReady ? 'camera-ready' : 'camera-not-ready'}>
+      <CameraView
+        style={styles.camera}
+        facing={facing}
+        ref={cameraRef}
+        onCameraReady={handleCameraReady}
+        enableTorch={false} // Explicitly disable torch to avoid potential issues
+      >
         <View style={styles.buttonContainer}>
-          {/* <TouchableOpacity style={styles.button} onPress={toggleCameraFacing}>
+          <TouchableOpacity style={styles.button} onPress={toggleCameraFacing}>
             <AntDesign name="retweet" size={44} color="black" />
-          </TouchableOpacity> */}
-          <TouchableOpacity style={styles.button} onPress={handleTakePhoto}>
-            <AntDesign name="camera" size={44} color="black" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.button} onPress={handleTakePhoto} disabled={!cameraReady}>
+            <AntDesign name="camera" size={44} color={cameraReady ? 'black' : 'gray'} />
           </TouchableOpacity>
         </View>
       </CameraView>

@@ -2,8 +2,8 @@ import { databases, client, RealtimeResponse } from '@/lib/appwrite';
 import { useAuth } from '@/lib/auth-context';
 import { Droplet } from '@/types/database.type';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
-import { Button, StyleSheet, Text, View, Alert } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Button, StyleSheet, Text, View, Alert, Modal, TouchableOpacity } from 'react-native';
 import { Query } from 'react-native-appwrite';
 import MapView, { Circle, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { getColor } from '@/components/getColor';
@@ -89,6 +89,9 @@ export default function App() {
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [region, setRegion] = useState(INITIAL_REGION);
   const { lat, lng } = useLocalSearchParams();
+  const [modalVisible, setModalVisible] = useState(false);
+  const [lowQualityDroplet, setLowQualityDroplet] = useState<Droplet | null>(null);
+  const mapRef = useRef<MapView | null>(null);
 
   const fetchDroplet = async () => {
     try {
@@ -120,6 +123,27 @@ export default function App() {
     }
   };
 
+  const handleViewOnMap = () => {
+    if (lowQualityDroplet) {
+      setRegion({
+        latitude: lowQualityDroplet.latitude,
+        longitude: lowQualityDroplet.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      });
+      mapRef.current?.animateToRegion(
+        {
+          latitude: lowQualityDroplet.latitude,
+          longitude: lowQualityDroplet.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        },
+        1000
+      );
+      setModalVisible(false);
+    }
+  };
+
   useEffect(() => {
     if (user) {
       const channel = `databases.6839e760003b3099528a.collections.6839e96e001331fdd3c7.documents`;
@@ -128,9 +152,15 @@ export default function App() {
         (response: RealtimeResponse) => {
           if (
             response.events.includes('databases.*.collections.*.documents.*.create') ||
-            response.events.includes('databases.*.collections.*.documents.*.update') ||
-            response.events.includes('databases.*.collections.*.documents.*.delete')
+            response.events.includes('databases.*.collections.*.documents.*.update')
           ) {
+            const payload = response.payload as Droplet;
+            if (payload.quality < 30) {
+              setLowQualityDroplet(payload);
+              setModalVisible(true);
+            }
+            fetchDroplet();
+          } else if (response.events.includes('databases.*.collections.*.documents.*.delete')) {
             fetchDroplet();
           }
         }
@@ -157,6 +187,7 @@ export default function App() {
   return (
     <View style={{ flex: 1 }}>
       <MapView
+        ref={mapRef}
         style={StyleSheet.absoluteFill}
         provider={PROVIDER_GOOGLE}
         region={region}
@@ -229,9 +260,42 @@ export default function App() {
         )}
       </MapView>
 
-      <View style={styles.buttonContainer}>
+      {/* <View style={styles.buttonContainer}>
         <Button title="Get Current Location" onPress={getCurrentLocation} />
-      </View>
+      </View> */}
+
+      {/* Modal for low quality notification */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Low Water Quality Alert</Text>
+            <Text style={styles.modalText}>
+              A water source at {lowQualityDroplet?.latitude.toFixed(4)},{' '}
+              {lowQualityDroplet?.longitude.toFixed(4)} has a quality score of{' '}
+              {lowQualityDroplet?.quality}.
+            </Text>
+            <View style={styles.modalButtonContainer}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.dismissButton]}
+                onPress={() => setModalVisible(false)}
+              >
+                <Text style={styles.modalButtonText}>Dismiss</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.viewButton]}
+                onPress={handleViewOnMap}
+              >
+                <Text style={styles.modalButtonText}>View on Map</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -255,26 +319,50 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     zIndex: 1,
   },
-  calloutContainer: {
-    padding: 10,
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
     backgroundColor: '#fff',
-    borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-    minWidth: 120,
+    borderRadius: 10,
+    padding: 20,
+    width: '80%',
     alignItems: 'center',
   },
-  calloutText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    textAlign: 'center',
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
   },
-  markerIcon: {
+  modalText: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  modalButtonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     width: '100%',
-    height: '100%',
+  },
+  modalButton: {
+    flex: 1,
+    padding: 10,
+    borderRadius: 5,
+    marginHorizontal: 5,
+    alignItems: 'center',
+  },
+  dismissButton: {
+    backgroundColor: '#ff4444',
+  },
+  viewButton: {
+    backgroundColor: '#007AFF',
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
