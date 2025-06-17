@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { View, StyleSheet, Alert, Modal, TouchableOpacity } from "react-native";
+import { View, StyleSheet, Alert, Modal, TouchableOpacity, ScrollView } from "react-native";
 import { Avatar, Menu, Button, Divider, TextInput, Text } from "react-native-paper";
 import { useAuth } from "@/lib/auth-context";
 import { account, functions, databases } from "@/lib/appwrite";
@@ -13,12 +13,12 @@ export default function ProfileScreen() {
   const { signOut, user } = useAuth();
   const [menuVisible, setMenuVisible] = useState(false);
   const [changePasswordModalVisible, setChangePasswordModalVisible] = useState(false);
-  const [deleteAccountModalVisible, setDeleteAccountModalVisible] = useState(false);
+  const [changeUsernameModalVisible, setChangeUsernameModalVisible] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [newUsername, setNewUsername] = useState("");
   const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [isChangingUsername, setIsChangingUsername] = useState(false);
   const [streakCount, setStreakCount] = useState(0);
   const router = useRouter();
 
@@ -65,7 +65,6 @@ export default function ProfileScreen() {
     }
 
     setIsChangingPassword(true);
-
     try {
       await account.updatePassword(newPassword, currentPassword);
       Alert.alert("Success", "Password changed successfully.");
@@ -83,45 +82,26 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleDeleteAccount = async () => {
-    if (!confirmPassword) {
-      Alert.alert("Error", "Please enter your password to confirm.");
+  const handleChangeUsername = async () => {
+    if (!newUsername) {
+      Alert.alert("Error", "Please enter a new username.");
       return;
     }
 
-    setIsDeletingAccount(true);
-
+    setIsChangingUsername(true);
     try {
-      await account.updatePassword(confirmPassword, confirmPassword);
-      const userData = await account.get();
-      const userId = userData.$id;
-      const response = await functions.createExecution(
-        'deleteUser',
-        JSON.stringify({ userId }),
-        false
-      );
-      console.log("Function response:", response);
-      const result = JSON.parse(response.responseBody);
-      if (!result.success) {
-        throw new Error(result.error || "Failed to delete account.");
-      }
-      await account.deleteSession('current');
-      Alert.alert("Success", "Account deleted successfully.");
-      setConfirmPassword("");
-      setDeleteAccountModalVisible(false);
-      router.replace("/auth");
+      await account.updateName(newUsername);
+      Alert.alert("Success", "Username updated successfully.");
+      setChangeUsernameModalVisible(false);
+      setNewUsername("");
     } catch (error) {
       if (error instanceof Error) {
-        if (error.message.includes("Function with the requested ID could not be found")) {
-          Alert.alert("Error", "Delete function not found. Please ensure the function is deployed correctly.");
-        } else {
-          Alert.alert("Error", error.message);
-        }
+        Alert.alert("Error", error.message);
       } else {
-        Alert.alert("Error", "An unexpected error occurred.");
+        Alert.alert("Error", "Failed to change username.");
       }
     } finally {
-      setIsDeletingAccount(false);
+      setIsChangingUsername(false);
     }
   };
 
@@ -130,94 +110,150 @@ export default function ProfileScreen() {
       colors={['#4c669f', '#3b5998', '#192f6a']}
       style={styles.container}
     >
-      <Animatable.View animation="fadeInUp" duration={800} style={styles.profileCard}>
-        <Avatar.Icon size={120} icon="account-circle" style={styles.avatar} />
-        <Text style={styles.username}>{user?.email || "User"}</Text>
-        <View style={styles.streakContainer}>
-          <MaterialCommunityIcons
-            name="water"
-            size={Math.min(40 + Math.log(streakCount + 1) * 10, 800)}
-            color="lightblue"
-          />
-          <Text style={styles.streakText}>{streakCount}</Text>
-        </View>
-      </Animatable.View>
-
-      <View style={styles.menuContainer}>
-        <Menu
-          visible={menuVisible}
-          onDismiss={closeMenu}
-          anchor={
-            <TouchableOpacity onPress={openMenu}>
-              <MaterialCommunityIcons name="dots-vertical" size={24} color="#fff" />
-            </TouchableOpacity>
-          }
-          anchorPosition="bottom"
-          contentStyle={styles.menuContent}
-        >
-          <Menu.Item
-            onPress={() => {
-              closeMenu();
-              setChangePasswordModalVisible(true);
-            }}
-            title="Change Password"
-            leadingIcon="lock"
-          />
-          <Divider />
-          <Menu.Item
-            onPress={handleSignOut}
-            title="Sign Out"
-            leadingIcon="logout"
-          />
-        </Menu>
-      </View>
-
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={changePasswordModalVisible}
-        onRequestClose={() => setChangePasswordModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <Animatable.View animation="zoomIn" duration={300} style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Change Password</Text>
-            <TextInput
-              label="Current Password"
-              value={currentPassword}
-              onChangeText={setCurrentPassword}
-              secureTextEntry
-              style={styles.input}
-              theme={{ colors: { primary: '#3399ff', background: '#fff' } }}
-            />
-            <TextInput
-              label="New Password"
-              value={newPassword}
-              onChangeText={setNewPassword}
-              secureTextEntry
-              style={styles.input}
-              theme={{ colors: { primary: '#3399ff', background: '#fff' } }}
-            />
-            <Button
-              mode="contained"
-              onPress={handleChangePassword}
-              loading={isChangingPassword}
-              disabled={isChangingPassword}
-              style={styles.button}
-              labelStyle={styles.buttonLabel}
-            >
-              Change Password
-            </Button>
-            <Button
-              mode="text"
-              onPress={() => setChangePasswordModalVisible(false)}
-              style={styles.cancelButton}
-              labelStyle={styles.cancelButtonLabel}
-            >
-              Cancel
-            </Button>
+      <ScrollView>
+        <View style={styles.header}>
+          <Animatable.View animation="fadeIn" duration={800}>
+            <Avatar.Icon size={120} icon="account-circle" style={styles.profileImage} />
           </Animatable.View>
+          <Text style={styles.name}>{user?.name || user?.email || "User"}</Text>
+          <Text style={styles.title}>App User</Text>
+          
+          <Menu
+            visible={menuVisible}
+            onDismiss={closeMenu}
+            anchor={
+              <TouchableOpacity style={styles.editButton} onPress={openMenu}>
+                <Text style={styles.editButtonText}>Profile Menu</Text>
+              </TouchableOpacity>
+            }
+            anchorPosition="bottom"
+            contentStyle={styles.menuContent}
+          >
+            <Menu.Item
+              onPress={() => {
+                closeMenu();
+                setChangeUsernameModalVisible(true);
+              }}
+              title="Change Username"
+              leadingIcon="account"
+            />
+            <Menu.Item
+              onPress={() => {
+                closeMenu();
+                setChangePasswordModalVisible(true);
+              }}
+              title="Change Password"
+              leadingIcon="lock"
+            />
+            <Divider />
+            <Menu.Item
+              onPress={handleSignOut}
+              title="Sign Out"
+              leadingIcon="logout"
+            />
+          </Menu>
         </View>
-      </Modal>
+
+        <Animatable.View animation="fadeInUp" duration={800} style={styles.section}>
+          <Text style={styles.sectionTitle}>Statistics</Text>
+          <View style={styles.statsContainer}>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{streakCount}</Text>
+              <MaterialCommunityIcons
+                name="water"
+                size={24}
+                color="#1976d2"
+                style={styles.statIcon}
+              />
+            </View>
+          </View>
+        </Animatable.View>
+
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={changePasswordModalVisible}
+          onRequestClose={() => setChangePasswordModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <Animatable.View animation="zoomIn" duration={300} style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Change Password</Text>
+              <TextInput
+                label="Current Password"
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
+                secureTextEntry
+                style={styles.input}
+                theme={{ colors: { primary: '#4a6ea9', background: '#fff' } }}
+              />
+              <TextInput
+                label="New Password"
+                value={newPassword}
+                onChangeText={setNewPassword}
+                secureTextEntry
+                style={styles.input}
+                theme={{ colors: { primary: '#4a6ea9', background: '#fff' } }}
+              />
+              <Button
+                mode="contained"
+                onPress={handleChangePassword}
+                loading={isChangingPassword}
+                disabled={isChangingPassword}
+                style={styles.button}
+                labelStyle={styles.buttonLabel}
+              >
+                Change Password
+              </Button>
+              <Button
+                mode="text"
+                onPress={() => setChangePasswordModalVisible(false)}
+                style={styles.cancelButton}
+                labelStyle={styles.cancelButtonLabel}
+              >
+                Cancel
+              </Button>
+            </Animatable.View>
+          </View>
+        </Modal>
+
+        <Modal
+          animationType="fade"
+          transparent={true}
+          visible={changeUsernameModalVisible}
+          onRequestClose={() => setChangeUsernameModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <Animatable.View animation="zoomIn" duration={300} style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Change Username</Text>
+              <TextInput
+                label="New Username"
+                value={newUsername}
+                onChangeText={setNewUsername}
+                style={styles.input}
+                theme={{ colors: { primary: '#4a6ea9', background: '#fff' } }}
+              />
+              <Button
+                mode="contained"
+                onPress={handleChangeUsername}
+                loading={isChangingUsername}
+                disabled={isChangingUsername}
+                style={styles.button}
+                labelStyle={styles.buttonLabel}
+              >
+                Change Username
+              </Button>
+              <Button
+                mode="text"
+                onPress={() => setChangeUsernameModalVisible(false)}
+                style={styles.cancelButton}
+                labelStyle={styles.cancelButtonLabel}
+              >
+                Cancel
+              </Button>
+            </Animatable.View>
+          </View>
+        </Modal>
+      </ScrollView>
     </LinearGradient>
   );
 }
@@ -225,48 +261,49 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-  },
-  profileCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 20,
-    padding: 24,
     alignItems: 'center',
-    marginTop: 60,
-    marginBottom: 32,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
   },
-  avatar: {
-    backgroundColor: '#3399ff',
+  header: {
+    alignItems: 'center',
+    paddingVertical: 30,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
     marginBottom: 16,
+    marginTop: 20,
+    borderRadius: 20,
+    width: 400,
   },
-  username: {
+  profileImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 3,
+    borderColor: '#ffffff',
+    backgroundColor: '#4a6ea9',
+    marginBottom: 15,
+  },
+  name: {
     fontSize: 24,
-    fontWeight: '700',
-    color: '#1a1a1a',
-    marginBottom: 12,
-  },
-  streakContainer: {
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-  },
-  streakText: {
-    position: 'absolute',
-    color: '#1a1a1a',
-    fontSize: 18,
     fontWeight: 'bold',
-    textAlign: 'center',
+    color: '#333333',
+    marginBottom: 4,
   },
-  menuContainer: {
-    position: 'absolute',
-    top: 20,
-    right: 20,
+  title: {
+    fontSize: 16,
+    color: '#666666',
+    marginBottom: 15,
+  },
+  editButton: {
+    backgroundColor: '#4a6ea9',
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+  },
+  editButtonText: {
+    color: '#ffffff',
+    fontWeight: '600',
+    fontSize: 14,
   },
   menuContent: {
     backgroundColor: 'white',
@@ -276,6 +313,45 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+  },
+  section: {
+    backgroundColor: '#ffffff',
+    padding: 20,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+    width: 400,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    color: '#2c3e50',
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    paddingVertical: 10,
+  },
+  statItem: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  statNumber: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333333',
+  },
+  statLabel: {
+    fontSize: 14,
+    color: '#666666',
+  },
+  statIcon: {
+    marginLeft: 4,
   },
   modalOverlay: {
     flex: 1,
@@ -296,8 +372,8 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 22,
-    fontWeight: '700',
-    color: '#1a1a1a',
+    fontWeight: 'bold',
+    color: '#2c3e50',
     marginBottom: 20,
     textAlign: 'center',
   },
@@ -308,7 +384,7 @@ const styles = StyleSheet.create({
   },
   button: {
     marginTop: 16,
-    backgroundColor: '#3399ff',
+    backgroundColor: '#4a6ea9',
     borderRadius: 12,
     paddingVertical: 4,
   },
@@ -322,7 +398,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   cancelButtonLabel: {
-    color: '#3399ff',
+    color: '#4a6ea9',
     fontSize: 16,
     fontWeight: '600',
   },
