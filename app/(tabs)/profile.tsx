@@ -159,6 +159,7 @@ export default function ProfileScreen() {
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
               <Text style={styles.statNumber}>{streakCount}</Text>
+              <Text>Streak</Text>
               <MaterialCommunityIcons
                 name="water"
                 size={24}

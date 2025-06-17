@@ -1,6 +1,13 @@
 export const WATER_SOURCES = [
+  { latitude: -6.2013867, longitude: 106.7819894, name: 'Binus Development Purpose', radius: 800 },
   { latitude: -6.197983, longitude: 106.671800, name: 'Danau Cipondoh', radius: 800 },
-  { latitude: -6.2013867, longitude: 106.7819894, name: 'Danau Cipondoh', radius: 800 },
+  { latitude: -6.167802,  longitude: 106.780510, name: 'Waduk Tomang', radius: 800 },
+  { latitude: -6.125625,  longitude: 106.867897, name: 'Waduk Sunter Utara', radius: 550 },
+  { latitude: -6.145720,  longitude: 106.881448, name: 'Danau Sunter', radius: 560 },
+  { latitude: -6.147768,  longitude: 106.867437, name: 'Waduk Sunter Barat', radius: 800 },
+  { latitude: -6.204380,  longitude: 106.826352, name: 'Waduk Setia Budi Barat', radius: 150 },
+  { latitude: -6.204380,  longitude: 106.826352, name: 'Waduk Setia Budi Barat', radius: 150 },
+  { latitude: -6.204955,  longitude: 106.829190, name: 'Waduk Setia Budi Timur', radius: 150 },
 ];
 
 // export interface WaterSource {

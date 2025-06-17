@@ -172,17 +172,29 @@ export default function App() {
             source.radius
           );
           return (
-            <Circle
-              key={`water-source-${index}`}
-              center={{
-                latitude: source.latitude,
-                longitude: source.longitude,
-              }}
-              radius={source.radius}
-              strokeWidth={0} // No outline
-              fillColor={getCircleFillColor(averageQuality)} // Dynamic color based on average quality
-              zIndex={1}
-            />
+            <>
+              <Circle
+                key={`circle-${index}`}
+                center={{
+                  latitude: source.latitude,
+                  longitude: source.longitude,
+                }}
+                radius={source.radius}
+                strokeWidth={0} // No outline
+                fillColor={getCircleFillColor(averageQuality)} // Dynamic color based on average quality
+                zIndex={1}
+              />
+              <Marker
+                key={`marker-${index}`}
+                coordinate={{
+                  latitude: source.latitude,
+                  longitude: source.longitude,
+                }}
+                title={source.name}
+                zIndex={2} // Marker above circle
+                opacity={0} // Make marker invisible to simulate circle tap
+              />
+            </>
           );
         })}
 
@@ -242,5 +254,27 @@ const styles = StyleSheet.create({
     bottom: 20,
     alignSelf: 'center',
     zIndex: 1,
+  },
+  calloutContainer: {
+    padding: 10,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+    minWidth: 120,
+    alignItems: 'center',
+  },
+  calloutText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    textAlign: 'center',
+  },
+  markerIcon: {
+    width: '100%',
+    height: '100%',
   },
 });

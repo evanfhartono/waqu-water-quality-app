@@ -21,7 +21,7 @@ export default function AlertScreen() {
       const response = await databases.listDocuments(
         '6839e760003b3099528a',
         '6839e96e001331fdd3c7',
-        [Query.equal('user_id', user?.$id ?? ''), Query.orderDesc('upload_time')]
+        [Query.orderDesc('upload_time')]
       );
       setDroplet(response.documents as Droplet[]);
     } catch (error) {
