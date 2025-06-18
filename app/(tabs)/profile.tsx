@@ -117,7 +117,6 @@ export default function ProfileScreen() {
           </Animatable.View>
           <Text style={styles.name}>{user?.name || user?.email || "User"}</Text>
           <Text style={styles.title}>App User</Text>
-          
           <Menu
             visible={menuVisible}
             onDismiss={closeMenu}
@@ -158,14 +157,9 @@ export default function ProfileScreen() {
           <Text style={styles.sectionTitle}>Statistics</Text>
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
+              <MaterialCommunityIcons name="water" size={24} color="#1976d2" />
               <Text style={styles.statNumber}>{streakCount}</Text>
-              <Text>Streak</Text>
-              <MaterialCommunityIcons
-                name="water"
-                size={24}
-                color="#1976d2"
-                style={styles.statIcon}
-              />
+              <Text style={styles.statLabel}>Streak</Text>
             </View>
           </View>
         </Animatable.View>
@@ -283,28 +277,34 @@ const styles = StyleSheet.create({
     borderColor: '#ffffff',
     backgroundColor: '#4a6ea9',
     marginBottom: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
   },
   name: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
-    color: '#333333',
+    color: '#2c3e50',
     marginBottom: 4,
   },
   title: {
     fontSize: 16,
-    color: '#666666',
+    color: '#7f8c8d',
     marginBottom: 15,
   },
   editButton: {
     backgroundColor: '#4a6ea9',
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderRadius: 24,
+    marginTop: 10,
   },
   editButtonText: {
     color: '#ffffff',
     fontWeight: '600',
-    fontSize: 14,
+    fontSize: 16,
   },
   menuContent: {
     backgroundColor: 'white',
@@ -325,17 +325,20 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
     width: 400,
+    marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 15,
     color: '#2c3e50',
+    marginBottom: 15,
   },
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
+    backgroundColor: '#f8f9fa',
     paddingVertical: 10,
+    borderRadius: 8,
   },
   statItem: {
     alignItems: 'center',
@@ -343,7 +346,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   statNumber: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#333333',
   },
@@ -351,14 +354,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666666',
   },
-  statIcon: {
-    marginLeft: 4,
-  },
   modalOverlay: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
   },
   modalContent: {
     width: '85%',
