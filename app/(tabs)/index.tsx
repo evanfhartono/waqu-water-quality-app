@@ -83,7 +83,7 @@ const GradientScoreBar = () => {
   return (
     <View style={styles.scoreBarContainer}>
       <LinearGradient
-        colors={['#00FF00', '#FFFF00', '#FF0000']}
+        colors={['#FF0000', '#FFFF00', '#00FF00']}
         start={{ x: 0, y: 1 }}
         end={{ x: 0, y: 0 }}
         style={styles.gradientBar}
@@ -246,6 +246,7 @@ export default function App() {
                   longitude: source.longitude,
                 }}
                 title={source.name}
+                description={averageQuality != null ? String(averageQuality) : undefined}
                 zIndex={2}
                 opacity={0}
               />
