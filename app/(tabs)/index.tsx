@@ -116,7 +116,7 @@ export default function App() {
         '6839e96e001331fdd3c7'
       );
       setDroplet(response.documents as Droplet[]);
-      console.log('Fetched droplets:', response.documents);
+      // console.log('Fetched droplets:', response.documents);
     } catch (error) {
       console.error('Error fetching droplets:', error);
     }

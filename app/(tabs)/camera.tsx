@@ -9,6 +9,7 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Button, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ID } from 'react-native-appwrite';
+import { useIsFocused } from '@react-navigation/native';
 
 // Haversine formula to calculate distance between two coordinates (in meters)
 const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
@@ -46,16 +47,16 @@ export default function Camera() {
   const [loading, setLoading] = useState<boolean>(false);
   const [cameraReady, setCameraReady] = useState<boolean>(false);
   const cameraRef = useRef<CameraView | null>(null);
-  const [isMounted, setIsMounted] = useState<boolean>(true); // Track component mount state
+  const [isMounted, setIsMounted] = useState<boolean>(true);
 
   const { user } = useAuth();
   const [longitude, setLongitude] = useState<number>(0);
   const [latitude, setLatitude] = useState<number>(0);
   const router = useRouter();
+  const isFocused = useIsFocused();
 
   // Fetch location when the component mounts
   useEffect(() => {
-    // resetCamera();
     getCurrentLocation();
     return () => {
       setIsMounted(false); // Cleanup on unmount
@@ -80,26 +81,6 @@ export default function Camera() {
       console.error('Error getting location:', error);
       Alert.alert('Location Error', 'Could not retrieve your location.');
     }
-  };
-
-  // Reset camera state to initial values
-  const resetCamera = async () => {
-    console.log('Resetting camera state...');
-    setFacing('back');
-    setPhoto(null);
-    setTmpQuality(0);
-    setLongitude(0);
-    setLatitude(0);
-    setCameraReady(false);
-    setLoading(false);
-    cameraRef.current = null; // Clear camera reference
-    await getCurrentLocation();
-    // Force re-render by toggling a key state if needed
-    setTimeout(() => {
-      if (isMounted) {
-        setCameraReady(true); // Re-enable camera after a brief delay
-      }
-    }, 100);
   };
 
   // Handle camera ready event
@@ -189,15 +170,9 @@ export default function Camera() {
   };
 
   const handleRetakePhoto = () => {
-    console.log('Retaking photo, resetting to camera view...');
+    console.log('Retaking photo, returning to camera view...');
     if (isMounted) {
       setPhoto(null);
-      setCameraReady(false);
-      setTimeout(() => {
-        if (isMounted) {
-          setCameraReady(true); // Re-enable camera after a brief delay
-        }
-      }, 100);
     }
   };
 
@@ -205,21 +180,21 @@ export default function Camera() {
     if (isNaN(longitude) || isNaN(latitude)) {
       console.error('Invalid data:', { longitude, latitude });
       Alert.alert('Invalid Data', 'Location or quality data is missing.');
-      throw new Error('Invalid data');
+      return;
     }
 
     // Check if user is near a water source
     const { isNear, sourceName } = isNearWaterSource(latitude, longitude);
     if (!isNear) {
-      Alert.alert('Submission rejected: Not near a water source');
-      throw new Error('Not near a water source');
+      Alert.alert('Submission Rejected', 'You must be near a lake or river to submit data.');
+      return;
     }
 
     // Confirm submission
     const confirmed = await confirmSubmission(sourceName!);
     if (!confirmed) {
       console.log('Submission cancelled by user');
-      throw new Error('Submission cancelled');
+      return;
     }
 
     if (!photo || !photo.base64) {
@@ -250,40 +225,13 @@ export default function Camera() {
         setTmpQuality(quality);
         console.log(`Confidence: ${data.confidence}, Rounded Quality: ${quality}`);
 
-        try {
-          await handleSubmit(quality);
-          setLoading(false);
-          Alert.alert(
-            'Submission Successful',
-            `Quality Score: ${quality}`,
-            [{ text: 'OK', onPress: async () => {
-              await resetCamera();
-              // Avoid immediate navigation to ensure state is reset
-              setTimeout(() => {
-                if (isMounted) {
-                  router.back();
-                }
-              }, 100);
-            } }]
-          );
-        } catch (error: any) {
-          setLoading(false);
-          if (error.message === 'Not near a water source') {
-            Alert.alert(
-              'Submission Rejected',
-              'You must be near a lake or river to submit data.',
-              [{ text: 'OK', onPress: async () => await resetCamera() }]
-            );
-          } else if (error.message === 'Submission cancelled') {
-            Alert.alert(
-              'Submission Cancelled',
-              'You cancelled the submission.',
-              [{ text: 'OK', onPress: async () => await resetCamera() }]
-            );
-          } else {
-            throw error;
-          }
-        }
+        await handleSubmit(quality);
+        setLoading(false);
+        Alert.alert(
+          'Submission Successful',
+          `Quality Score: ${quality}`,
+          [{ text: 'OK', onPress: () => router.back() }]
+        );
       } else {
         setLoading(false);
         console.error(`API error: ${response.status}`);
@@ -294,6 +242,7 @@ export default function Camera() {
       console.error('Analysis error:', error);
       Alert.alert('Error', 'An error occurred during analysis. Please try again.');
     }
+    handleRetakePhoto()
   };
 
   if (loading) {
@@ -309,28 +258,30 @@ export default function Camera() {
     return <PhotoPreviewSection photo={photo} handleRetakePhoto={handleRetakePhoto} handleAnalyzePhoto={handleAnalyzePhoto} />;
   }
 
-    const toggleCameraFacing = () => {
+  const toggleCameraFacing = () => {
     setFacing(current => (current === 'back' ? 'front' : 'back'));
   };
 
   return (
     <View style={styles.container} key={cameraReady ? 'camera-ready' : 'camera-not-ready'}>
-      <CameraView
-        style={styles.camera}
-        facing={facing}
-        ref={cameraRef}
-        onCameraReady={handleCameraReady}
-        enableTorch={false} // Explicitly disable torch to avoid potential issues
-      >
-        <View style={styles.buttonContainer}>
-          {/* <TouchableOpacity style={styles.button} onPress={toggleCameraFacing}>
-            <AntDesign name="retweet" size={44} color="black" />
-          </TouchableOpacity> */}
-          <TouchableOpacity style={styles.button} onPress={handleTakePhoto} disabled={!cameraReady}>
-            <AntDesign name="camera" size={44} color={cameraReady ? 'black' : 'gray'} />
-          </TouchableOpacity>
-        </View>
-      </CameraView>
+      {isFocused && (
+        <CameraView
+          style={styles.camera}
+          facing={facing}
+          ref={cameraRef}
+          onCameraReady={handleCameraReady}
+          enableTorch={false}
+        >
+          <View style={styles.buttonContainer}>
+            {/* <TouchableOpacity style={styles.button} onPress={toggleCameraFacing}>
+              <AntDesign name="retweet" size={44} color="black" />
+            </TouchableOpacity> */}
+            <TouchableOpacity style={styles.button} onPress={handleTakePhoto} disabled={!cameraReady}>
+              <AntDesign name="camera" size={44} color={cameraReady ? 'black' : 'gray'} />
+            </TouchableOpacity>
+          </View>
+        </CameraView>
+      )}
     </View>
   );
 }
