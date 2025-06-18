@@ -8,11 +8,13 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
+  Image, // Added Image import
 } from "react-native";
 import { Button, Text, TextInput, useTheme } from "react-native-paper";
 
-// Import your background image
-import bgImage from "../assets/images/SignIn_Wallpaper.jpg";
+// Import your background image and logo
+import bgImage from "@/assets/images/SignIn_Wallpaper.jpg";
+import logo from "@/assets/images/WaQu_Logo-circle.png";
 
 export default function AuthScreen() {
   const [isSignUp, setIsSignUp] = useState<boolean>(false);
@@ -87,6 +89,13 @@ export default function AuthScreen() {
       >
         <View style={styles.overlay}>
           <View style={styles.content}>
+            {/* Add the logo here */}
+            <Image
+              source={logo}
+              style={styles.logo}
+              resizeMode="contain"
+              accessibilityLabel="WaQu logo"
+            />
             <Text style={styles.title} variant="headlineMedium">
               {isSignUp ? "Create Account" : "Welcome Back"}
             </Text>
@@ -187,14 +196,21 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
     justifyContent: "center",
-    backgroundColor: "white", // White background for the box
-    borderRadius: 12, // Rounded corners
-    marginHorizontal: 16, // Margin to avoid touching screen edges
-    shadowColor: "#000", // Shadow for depth (optional)
+    backgroundColor: "#d8edff", 
+    borderRadius: 12, 
+    marginHorizontal: 16, 
+    shadowColor: "#000", 
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
-    elevation: 5, // For Android shadow
+    elevation: 5,
+  },
+  logo: {
+    width: 100,
+    height: 100,
+    borderRadius: 50, 
+    alignSelf: "center", 
+    marginBottom: 16, 
   },
   title: {
     textAlign: "center",
@@ -210,8 +226,8 @@ const styles = StyleSheet.create({
   },
   switchModeButton: {
     marginTop: 16,
-    alignItems: "center", // Center children (Text) horizontally
-    justifyContent: "center", // Center children vertically
-    paddingVertical: 8, // Mimic Button padding
+    alignItems: "center", 
+    justifyContent: "center",
+    paddingVertical: 8, 
   },
 });

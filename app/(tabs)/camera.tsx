@@ -323,9 +323,9 @@ export default function Camera() {
         enableTorch={false} // Explicitly disable torch to avoid potential issues
       >
         <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.button} onPress={toggleCameraFacing}>
+          {/* <TouchableOpacity style={styles.button} onPress={toggleCameraFacing}>
             <AntDesign name="retweet" size={44} color="black" />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
           <TouchableOpacity style={styles.button} onPress={handleTakePhoto} disabled={!cameraReady}>
             <AntDesign name="camera" size={44} color={cameraReady ? 'black' : 'gray'} />
           </TouchableOpacity>

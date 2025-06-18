@@ -7,6 +7,7 @@ import { Button, StyleSheet, Text, View, Alert, Modal, TouchableOpacity } from '
 import { Query } from 'react-native-appwrite';
 import MapView, { Circle, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { getColor } from '@/components/getColor';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import { useLocalSearchParams } from 'expo-router';
 import { WATER_SOURCES } from '@/assets/waterSources';
@@ -14,11 +15,10 @@ import { WATER_SOURCES } from '@/assets/waterSources';
 const INITIAL_REGION = {
   latitude: -6,
   longitude: 106,
-  latitudeDelta: 2,
-  longitudeDelta: 2,
+  latitudeDelta: 0.5,
+  longitudeDelta: 0.5,
 };
 
-// Helper function to format ISO date to dd/mm/yyyy
 const formatDate = (isoDate: string): string => {
   const date = new Date(isoDate);
   const day = String(date.getDate()).padStart(2, '0');
@@ -27,7 +27,6 @@ const formatDate = (isoDate: string): string => {
   return `${day}/${month}/${year}`;
 };
 
-// Haversine formula to calculate distance between two coordinates (in meters)
 const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
   const R = 6371e3; // Earth's radius in meters
   const φ1 = (lat1 * Math.PI) / 180;
@@ -39,10 +38,9 @@ const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: numbe
             Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-  return R * c; // Distance in meters
+  return R * c;
 };
 
-// Calculate average quality of droplets within a water source's radius
 const getAverageQuality = (
   droplets: Droplet[] | undefined,
   sourceLat: number,
@@ -64,13 +62,11 @@ const getAverageQuality = (
   return averageQuality;
 };
 
-// Convert getColor output to rgba for Circle fillColor
 const getCircleFillColor = (quality: number | null): string => {
   if (quality === null) {
-    return 'rgba(0, 0, 255, 0.05)'; // Default color if no droplets
+    return 'rgba(0, 0, 255, 0.05)';
   }
-  const color = getColor(quality); // e.g., "#FF0000" or "rgb(255, 0, 0)"
-  // Convert hex or rgb to rgba
+  const color = getColor(quality);
   if (color.startsWith('#')) {
     const r = parseInt(color.slice(1, 3), 16);
     const g = parseInt(color.slice(3, 5), 16);
@@ -80,7 +76,27 @@ const getCircleFillColor = (quality: number | null): string => {
     const [r, g, b] = color.match(/\d+/g)!.map(Number);
     return `rgba(${r}, ${g}, ${b}, 0.1)`;
   }
-  return 'rgba(0, 0, 255, 0.01)'; // Fallback
+  return 'rgba(0, 0, 255, 0.01)';
+};
+
+const GradientScoreBar = () => {
+  return (
+    <View style={styles.scoreBarContainer}>
+      <LinearGradient
+        colors={['#00FF00', '#FFFF00', '#FF0000']}
+        start={{ x: 0, y: 1 }}
+        end={{ x: 0, y: 0 }}
+        style={styles.gradientBar}
+      />
+      <View style={styles.scoreLabels}>
+        <Text style={styles.scoreLabel}>- 100</Text>
+        <Text style={styles.scoreLabel}>- 75</Text>
+        <Text style={styles.scoreLabel}>- 50</Text>
+        <Text style={styles.scoreLabel}>- 25</Text>
+        <Text style={styles.scoreLabel}>- 0</Text>
+      </View>
+    </View>
+  );
 };
 
 export default function App() {
@@ -100,26 +116,34 @@ export default function App() {
         '6839e96e001331fdd3c7'
       );
       setDroplet(response.documents as Droplet[]);
+      console.log('Fetched droplets:', response.documents);
     } catch (error) {
-      console.error(error);
+      console.error('Error fetching droplets:', error);
     }
   };
 
   const getCurrentLocation = async () => {
     let { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission Denied', 'Permission to access location was denied.');
+      Alert.alert('Permission Denied', 'Permission to access location was denied. Using default location.');
       return;
     }
     try {
       let location = await Location.getCurrentPositionAsync({});
+      const userRegion = {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        latitudeDelta: 0.5, 
+        longitudeDelta: 0.5,
+      };
       setUserLocation({
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
       });
+      setRegion(userRegion); // Set map to user's location
     } catch (error) {
       console.error("Error getting current location:", error);
-      Alert.alert('Location Error', 'Could not retrieve your current location.');
+      Alert.alert('Location Error', 'Could not retrieve your current location. Using default location.');
     }
   };
 
@@ -155,7 +179,8 @@ export default function App() {
             response.events.includes('databases.*.collections.*.documents.*.update')
           ) {
             const payload = response.payload as Droplet;
-            if (payload.quality < 30) {
+            console.log('Received droplet payload:', payload);
+            if (payload.quality < 30 && payload.latitude && payload.longitude) {
               setLowQualityDroplet(payload);
               setModalVisible(true);
             }
@@ -166,7 +191,7 @@ export default function App() {
         }
       );
       fetchDroplet();
-      getCurrentLocation();
+      getCurrentLocation(); // Fetch user location on mount
       return () => {
         dropletSubscription();
       };
@@ -194,7 +219,6 @@ export default function App() {
         showsUserLocation={true}
         showsMyLocationButton={true}
       >
-        {/* Water source circles */}
         {WATER_SOURCES.map((source, index) => {
           const averageQuality = getAverageQuality(
             droplet,
@@ -211,8 +235,8 @@ export default function App() {
                   longitude: source.longitude,
                 }}
                 radius={source.radius}
-                strokeWidth={0} // No outline
-                fillColor={getCircleFillColor(averageQuality)} // Dynamic color based on average quality
+                strokeWidth={0}
+                fillColor={getCircleFillColor(averageQuality)}
                 zIndex={1}
               />
               <Marker
@@ -222,14 +246,13 @@ export default function App() {
                   longitude: source.longitude,
                 }}
                 title={source.name}
-                zIndex={2} // Marker above circle
-                opacity={0} // Make marker invisible to simulate circle tap
+                zIndex={2}
+                opacity={0}
               />
             </>
           );
         })}
 
-        {/* Droplet markers */}
         {droplet?.length === 0 ? (
           <View>
             <Text>You haven’t predicted any water yet</Text>
@@ -260,42 +283,43 @@ export default function App() {
         )}
       </MapView>
 
-      {/* <View style={styles.buttonContainer}>
-        <Button title="Get Current Location" onPress={getCurrentLocation} />
-      </View> */}
+      <View style={styles.testBarContainer}>
+        <GradientScoreBar />
+      </View>
 
-      {/* Modal for low quality notification */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Low Water Quality Alert</Text>
-            <Text style={styles.modalText}>
-              A water source at {lowQualityDroplet?.latitude.toFixed(4)},{' '}
-              {lowQualityDroplet?.longitude.toFixed(4)} has a quality score of{' '}
-              {lowQualityDroplet?.quality}.
-            </Text>
-            <View style={styles.modalButtonContainer}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.dismissButton]}
-                onPress={() => setModalVisible(false)}
-              >
-                <Text style={styles.modalButtonText}>Dismiss</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.viewButton]}
-                onPress={handleViewOnMap}
-              >
-                <Text style={styles.modalButtonText}>View on Map</Text>
-              </TouchableOpacity>
+      {lowQualityDroplet && (
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={modalVisible}
+          onRequestClose={() => setModalVisible(false)}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Low Water Quality Alert</Text>
+              <Text style={styles.modalText}>
+                A water source at {lowQualityDroplet.latitude.toFixed(4)},{' '}
+                {lowQualityDroplet.longitude.toFixed(4)} has a quality score of{' '}
+                {lowQualityDroplet.quality}.
+              </Text>
+              <View style={styles.modalButtonContainer}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.dismissButton]}
+                  onPress={() => setModalVisible(false)}
+                >
+                  <Text style={styles.modalButtonText}>Dismiss</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.viewButton]}
+                  onPress={handleViewOnMap}
+                >
+                  <Text style={styles.modalButtonText}>View on Map</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
+      )}
     </View>
   );
 }
@@ -313,11 +337,14 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
   },
-  buttonContainer: {
+  testBarContainer: {
     position: 'absolute',
-    bottom: 20,
-    alignSelf: 'center',
-    zIndex: 1,
+    right: -5,
+    top: '50%',
+    transform: [{ translateY: -150 }],
+    width: 60,
+    height: 300,
+    zIndex: 10,
   },
   modalContainer: {
     flex: 1,
@@ -346,6 +373,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: '100%',
+    marginTop: 10,
   },
   modalButton: {
     flex: 1,
@@ -364,5 +392,33 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  scoreBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    height: '100%',
+    paddingVertical: 10,
+  },
+  gradientBar: {
+    width: 20,
+    height: 300,
+    borderWidth: 1,
+    borderColor: '#000',
+  },
+  scoreLabels: {
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+    height: 200,
+    marginLeft: 10,
+  },
+  scoreLabel: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+    textAlign: 'left',
+    left: -11,
+    marginBottom: 57.5,
+    top: -59.6,
   },
 });
