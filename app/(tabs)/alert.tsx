@@ -1,8 +1,8 @@
 import { client, databases, RealtimeResponse } from "@/lib/appwrite";
 import { useAuth } from "@/lib/auth-context";
 import { Droplet } from "@/types/database.type";
-import { useEffect, useState } from "react";
-import { View, StyleSheet, TouchableOpacity, ActivityIndicator } from "react-native";
+import { useEffect, useState, useCallback } from "react";
+import { View, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
 import { Text } from "react-native-paper";
 import { Query } from "react-native-appwrite";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -11,25 +11,14 @@ import { useRouter } from "expo-router";
 import { getColor } from "@/components/getColor";
 import { LinearGradient } from "expo-linear-gradient";
 import { WATER_SOURCES } from "@/assets/waterSources";
+import * as Location from "expo-location";
 
 export default function AlertScreen() {
   const { user } = useAuth();
-  const [droplet, setDroplet] = useState<Droplet[]>();
+  const [droplet, setDroplet] = useState<Droplet[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const router = useRouter();
-
-  const fetchDroplet = async () => {
-    try {
-      const response = await databases.listDocuments(
-        "6839e760003b3099528a",
-        "6839e96e001331fdd3c7",
-        [Query.orderDesc("upload_time")]
-      );
-      setDroplet(response.documents as Droplet[]);
-    } catch (error) {
-      console.error(error);
-    }
-  };
 
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
     const R = 6371e3; // Earth's radius in meters
@@ -59,9 +48,63 @@ export default function AlertScreen() {
       }
     }
 
-    // Consider the droplet to be at the source's location if within its radius
     return minDistance <= closestSource.radius ? closestSource.name : "Unknown Location";
   };
+
+  const getCurrentLocation = async () => {
+    let { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'Location access is required to show nearby predictions. Showing all predictions.');
+      console.log('Location permission denied');
+      return null;
+    }
+    try {
+      let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      console.log('User location fetched:', location.coords);
+      return {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      };
+    } catch (error) {
+      console.error("Error getting current location:", error);
+      Alert.alert('Location Error', 'Could not retrieve your current location. Showing all predictions.');
+      return null;
+    }
+  };
+
+  const fetchDroplet = useCallback(async (location: { latitude: number; longitude: number } | null) => {
+    try {
+      console.log('Fetching droplets with location:', location);
+      const response = await databases.listDocuments(
+        "6839e760003b3099528a",
+        "6839e96e001331fdd3c7",
+        [Query.orderDesc("upload_time")]
+      );
+      let droplets = response.documents as Droplet[];
+      
+      if (location) {
+        console.log('Filtering droplets with user location:', location);
+        droplets = droplets.filter((droplet) => {
+          const distance = calculateDistance(
+            droplet.latitude,
+            droplet.longitude,
+            location.latitude,
+            location.longitude
+          );
+          console.log(`Droplet ${droplet.droplet_id} distance: ${distance} meters`);
+          return distance <= 50000; // 50km in meters
+        });
+        console.log('Filtered droplets:', droplets.length);
+      } else {
+        console.log('No user location, showing all droplets:', droplets.length);
+      }
+      
+      setDroplet(droplets);
+    } catch (error) {
+      console.error('Error fetching droplets:', error);
+      Alert.alert('Error', 'Failed to fetch predictions. Please try again later.');
+    }
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -69,19 +112,33 @@ export default function AlertScreen() {
       const dropletSubscription = client.subscribe(
         channel,
         (response: RealtimeResponse) => {
+          console.log('Real-time event received:', response.events);
           if (
             response.events.includes("databases.*.collections.*.documents.*.create") ||
             response.events.includes("databases.*.collections.*.documents.*.update") ||
             response.events.includes("databases.*.collections.*.documents.*.delete")
           ) {
-            fetchDroplet();
+            console.log('Real-time update triggered, refetching with location:', userLocation);
+            fetchDroplet(userLocation);
           }
         }
       );
-      fetchDroplet().then(() => setLoading(false));
-      return () => dropletSubscription();
+
+      // Initial fetch
+      getCurrentLocation().then((location) => {
+        setUserLocation(location);
+        fetchDroplet(location).then(() => {
+          console.log('Initial fetch complete, loading set to false');
+          setLoading(false);
+        });
+      });
+
+      return () => {
+        console.log('Unsubscribing from real-time updates');
+        dropletSubscription();
+      };
     }
-  }, [user]);
+  }, [user, fetchDroplet]);
 
   const formatDate = (isoDate: string): string => {
     const date = new Date(isoDate);
@@ -108,7 +165,9 @@ export default function AlertScreen() {
             </View>
           ) : droplet?.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>You haven’t predicted any water yet</Text>
+              <Text style={styles.emptyStateText}>
+                {userLocation ? "No predictions within 50km of your location" : "No predictions available"}
+              </Text>
               <TouchableOpacity
                 style={styles.ctaButton}
                 onPress={() => router.push("/camera")}
@@ -233,6 +292,7 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 18,
     marginBottom: 16,
+    textAlign: "center",
   },
   ctaButton: {
     backgroundColor: "#007AFF",

@@ -1,35 +1,22 @@
 import { client, databases, RealtimeResponse } from "@/lib/appwrite";
 import { useAuth } from "@/lib/auth-context";
 import { Droplet } from "@/types/database.type";
-import { useEffect, useState } from "react";
-import { View, StyleSheet, TouchableOpacity, ActivityIndicator } from "react-native";
+import { useEffect, useState, useCallback } from "react";
+import { View, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
 import { Text } from "react-native-paper";
 import { Query } from "react-native-appwrite";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { ScrollView } from "react-native-gesture-handler";
 import { useRouter } from "expo-router";
-import { getColor } from '@/components/getColor';
+import { getColor } from "@/components/getColor";
 import { LinearGradient } from "expo-linear-gradient";
 import { WATER_SOURCES } from "@/assets/waterSources";
 
-export default function AlertScreen() {
+export default function UserLogScreen() {
   const { user } = useAuth();
-  const [droplet, setDroplet] = useState<Droplet[]>();
+  const [droplet, setDroplet] = useState<Droplet[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-
-  const fetchDroplet = async () => {
-    try {
-      const response = await databases.listDocuments(
-        "6839e760003b3099528a",
-        "6839e96e001331fdd3c7",
-        [Query.equal("user_id", user?.$id ?? ""), Query.orderDesc('upload_time')]
-      );
-      setDroplet(response.documents as Droplet[]);
-    } catch (error) {
-      console.error(error);
-    }
-  };
 
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
     const R = 6371e3; // Earth's radius in meters
@@ -59,9 +46,25 @@ export default function AlertScreen() {
       }
     }
 
-    // Consider the droplet to be at the source's location if within its radius
     return minDistance <= closestSource.radius ? closestSource.name : "Unknown Location";
   };
+
+  const fetchDroplet = useCallback(async () => {
+    try {
+      console.log('Fetching user droplets for user:', user?.$id);
+      const response = await databases.listDocuments(
+        "6839e760003b3099528a",
+        "6839e96e001331fdd3c7",
+        [Query.equal("user_id", user?.$id ?? ""), Query.orderDesc("upload_time")]
+      );
+      const droplets = response.documents as Droplet[];
+      console.log('Fetched user droplets:', droplets.length);
+      setDroplet(droplets);
+    } catch (error) {
+      console.error('Error fetching droplets:', error);
+      Alert.alert('Error', 'Failed to fetch your predictions. Please try again later.');
+    }
+  }, [user]);
 
   useEffect(() => {
     if (user) {
@@ -69,19 +72,33 @@ export default function AlertScreen() {
       const dropletSubscription = client.subscribe(
         channel,
         (response: RealtimeResponse) => {
+          console.log('Real-time event received:', response.events);
           if (
             response.events.includes("databases.*.collections.*.documents.*.create") ||
             response.events.includes("databases.*.collections.*.documents.*.update") ||
             response.events.includes("databases.*.collections.*.documents.*.delete")
           ) {
-            fetchDroplet();
+            // Check if the event pertains to the current user
+            const payload = response.payload as Droplet;
+            if (payload.user_id === user.$id || response.events.includes("databases.*.collections.*.documents.*.delete")) {
+              console.log('Real-time update for user, refetching droplets');
+              fetchDroplet();
+            }
           }
         }
       );
-      fetchDroplet().then(() => setLoading(false));
-      return () => dropletSubscription();
+
+      fetchDroplet().then(() => {
+        console.log('Initial fetch complete, loading set to false');
+        setLoading(false);
+      });
+
+      return () => {
+        console.log('Unsubscribing from real-time updates');
+        dropletSubscription();
+      };
     }
-  }, [user]);
+  }, [user, fetchDroplet]);
 
   const formatDate = (isoDate: string): string => {
     const date = new Date(isoDate);
@@ -132,7 +149,7 @@ export default function AlertScreen() {
                 <View style={styles.cardContent}>
                   <Text style={styles.cardTitle}>{droplet.droplet_id}</Text>
                   <View style={styles.infoRow}>
-                    <MaterialCommunityIcons name="account" size={16} color="#555" />
+                    <MaterialCommunityIcons name="account" size={16} color="#555" Bungle />
                     <Text style={styles.label}>User:</Text>
                     <Text style={styles.value}>{user?.name || user?.email || "User"}</Text>
                   </View>
