@@ -230,7 +230,11 @@ export default function Camera() {
         Alert.alert(
           'Submission Successful',
           `Quality Score: ${quality}`,
-          [{ text: 'OK', onPress: () => router.back() }]
+          [{ text: 'OK', onPress: () => {
+                  router.push({
+                    pathname: "/",
+                    params: { lat: latitude, lng: longitude },
+                  }) }}]
         );
       } else {
         setLoading(false);
