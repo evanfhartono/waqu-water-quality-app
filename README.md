@@ -1,52 +1,114 @@
-# Welcome to your Expo app 👋
+# 💧 WaQu – Water Quality App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+**WaQu (Water Quality Map)** is a mobile application built with **React Native + Expo** that helps users **predict and map water quality in real-time**.  
+The app leverages **AI prediction models** and smartphone cameras to assess water conditions and visualize them on an **interactive map**.  
 
-## Get started
+WaQu was developed as part of the **PKM-KC 2025** project, aligning with **SDG 6: Clean Water and Sanitation** to support sustainable water resource management.
 
-1. Install dependencies
+---
 
-   ```bash
-   npm install
-   or..
-   npm ci
-   ```
+## 📖 Background
+Access to clean water remains a challenge worldwide — over **2 billion people** lack safe water (WHO, 2022). In Indonesia, many rivers and wells face pollution risks from domestic and industrial waste.  
 
-2. Start the app
+WaQu addresses this issue by:
+- Enabling **real-time water quality prediction** using AI and cameras.  
+- Providing a **map-based visualization** of water conditions.  
+- Offering **early warnings** when nearby water sources are unsafe.  
 
-   ```bash
-   npx expo start
-   ```
+---
 
-In the output, you'll find options to open the app in a
+## 🎯 Objectives
+1. Build a mobile app that predicts water quality using **AI + smartphone camera**.  
+2. Display results on a **map interface**, similar to air pollution maps.  
+3. Provide **early alerts** for poor water quality.  
+4. Encourage **community participation** in water preservation.  
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+---
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## 🌟 Features
+- 📷 **AI-based water quality prediction** via camera capture.  
+- 🗺️ **Interactive map** showing indexed water quality at different locations.  
+- ⚠️ **Early warning system** when water is unsafe.  
+- 📊 **User history & logs** for past predictions.  
+- 👤 **Account system** (sign up, login, profile management).  
 
-## Get a fresh project
+---
 
-When you're ready, run:
-
-```bash
-npm run reset-project
+## 📂 Project Structure
+```
+waqu-water-quality-app/
+│
+├── app/              # Main app screens (file-based routing with Expo Router)
+├── components/       # UI components
+├── assets/           # Icons, images, fonts
+├── package.json      # Dependencies
+├── App.js            # App entry point
+└── README.md
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+---
 
-## Learn more
+## 🛠️ Tech Stack
+- **React Native + Expo** – Frontend framework  
+- **TensorFlow Lite (planned)** – AI water quality model integration  
+- **Google Maps API** – Map visualization  
+- **Appwrite / Firebase (planned)** – Backend for user accounts & data storage  
+- **Jira + GitHub** – Agile project management & version control  
 
-To learn more about developing your project with Expo, look at the following resources:
+---
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## 🚀 Getting Started
 
-## Join the community
+### 1. Clone the repository
+```bash
+git clone https://github.com/evanfhartono/waqu-water-quality-app.git
+cd waqu-water-quality-app
+```
 
-Join our community of developers creating universal apps.
+### 2. Install dependencies
+```bash
+npm install
+# or
+npm ci
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+### 3. Start the Expo app
+```bash
+npx expo start
+```
+
+You can run it on:
+- 📱 **Expo Go** (scan QR code)  
+- 📱 **Development Build** (Android/iOS emulator)  
+- 🌐 **Web Preview**  
+
+---
+
+## 📸 Prototype Preview
+*(UI design from Figma + current prototype build)*  
+
+- Home & Map View  
+- Camera-based Prediction  
+- Early Warning Alerts  
+<img width="1093" height="928" alt="5bRCOJNxks" src="https://github.com/user-attachments/assets/7ca670d2-6efe-4552-862d-21c8e4833677" />
+
+---
+
+## 👨‍💻 Contributors
+- **Evan F. Hartono** – AI Model, Map & Alerts  
+- **Arthaz Anthony** – UI/UX Design  
+- **Osel C. Chen** – Profile & Authentication Pages  
+- **Rafi H. Tafara** – Backend & Database Schema  
+- **Yosepril Zhounggi** – Camera Functionality  
+
+Supervisor: **Ghina Zain Nabiilah, S.Kom., M.Kom.**
+
+---
+
+## 📚 References
+- Guo et al. (2024). *Hybrid CNN-LSTM for water quality prediction*.  
+- Haekal & Wibowo (2023). *Water quality prediction with ML*.  
+- Lesmana & Fuady (2023). *Water quality mapping with ArcGIS*.  
+- WHO (2022). *Global water access report*.  
+
+---
